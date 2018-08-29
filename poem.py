@@ -67,7 +67,7 @@ def process_poems(file_path):
     word_idx_map=dict(zip(words,range(len(words))))
     poems_vector=[list(map(lambda word:word_idx_map[word],poem)) for poem in poems]
 
-    print(u"共找到%d首诗, 有%d首无法处理, 一共处理%d首，共计%d个词" % (total_line, error_line, len(poems),len(words)))
+    print(u"共找到%d首诗, 有%d首无法处理, 一共处理%d首，共计%d个词" % (total_line, error_line, len(poems),len(words)),flush=True)
     return poems_vector,word_idx_map,words
 
 
@@ -208,7 +208,7 @@ def run_training():
             while True:
                 if global_step_value >= max_global_step:
                     print('[%s] Train completed with %d epochs, %d steps' % (
-                    time.strftime('%Y-%m-%d %H:%M:%S'), FLAGS.epochs, global_step_value))
+                    time.strftime('%Y-%m-%d %H:%M:%S'), FLAGS.epochs, global_step_value),flush=True)
                     return
 
                 input_data_value,output_data_value=next(bg)
@@ -219,7 +219,7 @@ def run_training():
                         feed_dict={input_data: input_data_value, output_data: output_data_value})
                     epoch = math.ceil(global_step_value / batch_num_per_epoch)
                     batch = global_step_value - (epoch-1) * batch_num_per_epoch
-                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss))
+                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss),flush=True)
                     writer.add_summary(summary, global_step_value)
                     writer.flush()
                 else:
@@ -231,12 +231,12 @@ def run_training():
                 if global_step_value % FLAGS.training_save_interval ==0 or global_step_value>=max_global_step:
                     # save every epoch
                     saver.save(sess, os.path.join(FLAGS.model_dir, FLAGS.model_prefix), global_step=global_step_value)
-                    print('[%s] Save model[global_step = %d]' % (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value))
+                    print('[%s] Save model[global_step = %d]' % (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value),flush=True)
 
         except KeyboardInterrupt:
             print('Interrupt manually, try saving checkpoint for now')
             saver.save(sess, os.path.join(FLAGS.model_dir, FLAGS.model_prefix), global_step=global_step_value)
-            print('Save model[global_step = %d]' % (global_step_value))
+            print('Save model[global_step = %d]' % (global_step_value),flush=True)
 
 
 
@@ -255,10 +255,10 @@ class PoemGen:
             return vocabs[sample]
 
     def __init__(self):
-        print('Loading corpus...')
+        print('Loading corpus...',flush=True)
         _, self._word_idx_map, self._words = process_poems(FLAGS.file_path)
 
-        print('Loading model...')
+        print('Loading model...',flush=True)
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
         self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._words), rnn_size=FLAGS.rnn_size,
@@ -273,13 +273,13 @@ class PoemGen:
 
         if checkpoint:
             saver.restore(self._sess, checkpoint)
-            print("Model %s loaded" % checkpoint)
+            print("Model %s loaded" % checkpoint,flush=True)
         else:
             raise ValueError('can not find model ')
 
     def gen(self,begin_word):
         if not begin_word in self._word_idx_map:
-            print('汉字不在词汇表中，随机生成诗句',end=' ')
+            print('汉字不在词汇表中，随机生成诗句',end=' ',flush=True)
             begin_word=None
 
         x = np.array([list(map(self._word_idx_map.get, start_token))])
@@ -311,7 +311,7 @@ def run_gen():
     while True:
         word = input('输入第一个汉字:')
         poem=poemGen.gen(word)
-        print("[%s]"%poem)
+        print("[%s]"%poem,flush=True)
 
 
 def main(_):
@@ -325,7 +325,7 @@ def main(_):
           .format(mode=FLAGS.mode, batch_size=FLAGS.batch_size, rnn_size= FLAGS.rnn_size, learning_rate=FLAGS.learning_rate, model_dir= FLAGS.model_dir,
                   log_dir=FLAGS.log_dir, file_path= FLAGS.file_path, cell_type= FLAGS.cell_type
                   , model_prefix =FLAGS.model_prefix, epochs=FLAGS.epochs
-                  , training_echo_interval=FLAGS.training_echo_interval, training_save_interval=FLAGS.training_save_interval))
+                  , training_echo_interval=FLAGS.training_echo_interval, training_save_interval=FLAGS.training_save_interval),flush=True)
 
     if FLAGS.mode=='train':
         run_training()
