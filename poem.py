@@ -286,7 +286,7 @@ class PoemGen:
         self._sess.as_default()
         run_options = tf.RunOptions()
         # run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-        self._sess.run(init_op,options=self.run_options)
+        self._sess.run(init_op,options=run_options)
 
         if checkpoint:
             saver.restore(self._sess, checkpoint)
