@@ -196,9 +196,10 @@ def run_training():
     saver=tf.train.Saver(tf.global_variables())
     init_op=tf.group(tf.global_variables_initializer(),tf.local_variables_initializer())
     with tf.Session() as sess:
+        run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
         writer=tf.summary.FileWriter(FLAGS.log_dir,sess.graph)
-        sess.run(init_op)
-        global_step_value=sess.run(global_step)
+        sess.run(init_op,options=run_options)
+        global_step_value=sess.run(global_step,options=run_options)
 
         checkpoint=tf.train.latest_checkpoint(FLAGS.model_dir)
         if checkpoint:
@@ -219,7 +220,7 @@ def run_training():
                     loss, _, _, _, global_step_value,summary = sess.run(
                         [end_points['total_loss'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
-                        feed_dict={input_data: input_data_value, output_data: output_data_value})
+                        feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
                     epoch = math.ceil(global_step_value / batch_num_per_epoch)
                     batch = global_step_value - (epoch-1) * batch_num_per_epoch
                     print('[%s] Epoch %d, Batch %d, global step %d, Training Loss: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss),flush=True)
@@ -227,7 +228,7 @@ def run_training():
                     writer.flush()
                 else:
                     _,_,global_step_value=sess.run([end_points['train_op'],inc_global_step_op,global_step],
-                        feed_dict={input_data: input_data_value, output_data: output_data_value})
+                        feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
                     epoch = math.ceil(global_step_value / batch_num_per_epoch)
                     batch = global_step_value - (epoch - 1) * batch_num_per_epoch
 
@@ -272,7 +273,8 @@ class PoemGen:
         checkpoint = tf.train.latest_checkpoint(FLAGS.model_dir)
         self._sess=tf.Session()
         self._sess.as_default()
-        self._sess.run(init_op)
+        self._run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+        self._sess.run(init_op,options=self._run_options)
 
         if checkpoint:
             saver.restore(self._sess, checkpoint)
