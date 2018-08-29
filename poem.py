@@ -154,11 +154,11 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
     # training
     if output_data is not None:
         # [?,vocab_size]
-        # labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
-        # loss=tf.nn.softmax_cross_entropy_with_logits_v2(logits=output_logits,labels=labels)
+        labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
+        loss=tf.nn.softmax_cross_entropy_with_logits_v2(logits=output_logits,labels=labels)
 
-        labels = tf.reshape(output_data, [-1])
-        loss=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
+        # labels = tf.reshape(output_data, [-1])
+        # loss=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
 
         total_loss=tf.reduce_mean(loss)
         tf.summary.scalar('total_loss', total_loss)
@@ -191,8 +191,8 @@ def run_training():
     fill_value = word_idx_map[' ']
     bg=batch_generator(FLAGS.batch_size, poems_vector, fill_value)
 
-    batch_num_per_epoch=math.ceil(len(poems_vector)/FLAGS.batch_size)
-    max_global_step=FLAGS.epochs*batch_num_per_epoch
+    epoch_size=len(poems_vector)
+    max_global_step=FLAGS.epochs*epoch_size
 
     input_data=tf.placeholder(tf.int32,[FLAGS.batch_size,None])
     output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, None])
@@ -232,16 +232,14 @@ def run_training():
                         [end_points['total_loss'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
-                    epoch = math.ceil(global_step_value / batch_num_per_epoch)
-                    batch = global_step_value - (epoch-1) * batch_num_per_epoch
+                    epoch = math.ceil(global_step_value / epoch_size)
+                    batch = math.ceil((global_step_value - (epoch-1) * epoch_size)/FLAGS.batch_size)
                     print('[%s] Epoch %d, Batch %d, global step %d, Training Loss: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss),flush=True)
                     writer.add_summary(summary, global_step_value)
                     writer.flush()
                 else:
                     _,_,global_step_value=sess.run([end_points['train_op'],inc_global_step_op,global_step],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
-                    epoch = math.ceil(global_step_value / batch_num_per_epoch)
-                    batch = global_step_value - (epoch - 1) * batch_num_per_epoch
 
                 if global_step_value % FLAGS.training_save_interval ==0 or global_step_value>=max_global_step:
                     # save every epoch
