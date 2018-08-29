@@ -9,7 +9,7 @@ import time
 
 tf.app.flags.DEFINE_integer('batch_size', 64, 'batch size.')
 tf.app.flags.DEFINE_integer('rnn_size', 128, 'rnn hidden size.')
-tf.app.flags.DEFINE_float('learning_rate', 0.001, 'learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'learning rate.')
 tf.app.flags.DEFINE_string('model_dir', os.path.abspath('./model'), 'model save path.')
 tf.app.flags.DEFINE_string('log_dir', os.path.abspath('./logs'), 'logs save path.')
 tf.app.flags.DEFINE_string('file_path', os.path.abspath('./data/poems.txt'), 'file name of poems.')
