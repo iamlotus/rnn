@@ -50,6 +50,12 @@ def process_poems(file_path):
                     error_line+=1
                     continue
 
+                # Calculate loss will convert a whole poem to one-hot format to calculate cross-entory-softmax
+                # If a poem is too long (the longest poem is about 2K), tensor (batch, poem-length, word_num) will be too big to cause OOM
+                if len(content)<20 or len(content)> 280:
+                    error_line += 1
+                    continue
+
                 content= '%s%s%s'%(start_token,content,end_token)
                 poems.append(content)
             except ValueError as e:
@@ -148,8 +154,12 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
     # training
     if output_data is not None:
         # [?,vocab_size]
-        labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
-        loss=tf.nn.softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
+        # labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
+        # loss=tf.nn.softmax_cross_entropy_with_logits_v2(logits=output_logits,labels=labels)
+
+        labels = tf.reshape(output_data, [-1])
+        loss=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
+
         total_loss=tf.reduce_mean(loss)
         tf.summary.scalar('total_loss', total_loss)
         train_op=tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
@@ -196,7 +206,8 @@ def run_training():
     saver=tf.train.Saver(tf.global_variables())
     init_op=tf.group(tf.global_variables_initializer(),tf.local_variables_initializer())
     with tf.Session() as sess:
-        run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+        run_options = tf.RunOptions()
+        # run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
         writer=tf.summary.FileWriter(FLAGS.log_dir,sess.graph)
         sess.run(init_op,options=run_options)
         global_step_value=sess.run(global_step,options=run_options)
@@ -273,8 +284,9 @@ class PoemGen:
         checkpoint = tf.train.latest_checkpoint(FLAGS.model_dir)
         self._sess=tf.Session()
         self._sess.as_default()
-        self._run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-        self._sess.run(init_op,options=self._run_options)
+        run_options = tf.RunOptions()
+        # run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+        self._sess.run(init_op,options=self.run_options)
 
         if checkpoint:
             saver.restore(self._sess, checkpoint)
