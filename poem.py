@@ -145,7 +145,7 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
     if output_data is not None:
         # [?,vocab_size]
         labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
-        loss=tf.nn.softmax_cross_entropy_with_logits(output_logits,labels)
+        loss=tf.nn.softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
         total_loss=tf.reduce_mean(loss)
         tf.summary.scalar('total_loss', total_loss)
         train_op=tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
@@ -313,7 +313,16 @@ def run_gen():
 
 
 def main(_):
-    print("FLAGS=%s"%FLAGS.__flags)
+
+    print("系统参数: \n"
+          "mode={mode}, batch_size={batch_size}, rnn_size={rnn_size}, learning_rate={learning_rate} \n"
+          "model_dir='{model_dir}', log_dir='{log_dir}', file_path='{file_path}' \n"
+          "cell_type='{cell_type}', model_prefix='{model_prefix}', epochs={epochs} \n"
+          "training_echo_interval={training_echo_interval}, training_save_interval={training_save_interval}\n"
+          .format(mode=FLAGS.mode, batch_size=FLAGS.batch_size, rnn_size= FLAGS.rnn_size, learning_rate=FLAGS.learning_rate, model_dir= FLAGS.model_dir,
+                  log_dir=FLAGS.log_dir, file_path= FLAGS.file_path, cell_type= FLAGS.cell_type
+                  , model_prefix =FLAGS.model_prefix, epochs=FLAGS.epochs
+                  , training_echo_interval=FLAGS.training_echo_interval, training_save_interval=FLAGS.training_save_interval))
 
     if FLAGS.mode=='train':
         run_training()
