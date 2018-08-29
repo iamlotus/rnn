@@ -201,8 +201,9 @@ def run_training():
         checkpoint=tf.train.latest_checkpoint(FLAGS.model_dir)
         if checkpoint:
             saver.restore(sess,checkpoint)
-            print("Restore from checkpoint %s"%checkpoint)
-        print("Start training")
+            print("Restore from checkpoint %s, continue training"%checkpoint,flush=True)
+        else:
+            print("Can not find checkpoint from %s, start new training"%FLAGS.model_dir,flush=True)
 
         try:
             while True:
