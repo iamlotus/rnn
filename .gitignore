@@ -1,0 +1,13 @@
+/bin
+/lib
+/MNIST_data
+/logs
+/model
+/__pycache__
+.floy*
+.ipynb_checkpoints/
+*.pyc
+pyvenv.cfg
+.idea/
+.trainpid
+test.py
