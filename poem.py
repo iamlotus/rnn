@@ -19,6 +19,8 @@ tf.app.flags.DEFINE_integer('epochs', 500, 'train how many epochs.')
 tf.app.flags.DEFINE_integer('training_echo_interval', 20, 'echo logs interval during training.')
 tf.app.flags.DEFINE_integer('training_save_interval', 100, 'save model interval during training.')
 tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
+tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
+
 FLAGS=tf.app.flags.FLAGS
 start_token='B'
 end_token='E'
@@ -335,5 +337,6 @@ def main(_):
 
 
 if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.cuda_visible_devices  # set GPU visibility in multiple-GPU environment
     tf.app.run()
 
