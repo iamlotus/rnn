@@ -16,7 +16,7 @@ tf.app.flags.DEFINE_string('file_path', os.path.abspath('./data/poems.txt'), 'fi
 tf.app.flags.DEFINE_string('cell_type', 'rnn', 'rnn/gru/lstm')
 tf.app.flags.DEFINE_string('model_prefix', 'poems', 'model save prefix.')
 tf.app.flags.DEFINE_integer('epochs', 500, 'train how many epochs.')
-tf.app.flags.DEFINE_integer('training_echo_interval', 20, 'echo logs interval during training.')
+tf.app.flags.DEFINE_integer('training_echo_interval', 2, 'echo logs interval during training.')
 tf.app.flags.DEFINE_integer('training_save_interval', 100, 'save model interval during training.')
 tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
 tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
@@ -156,20 +156,30 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
         # [?,vocab_size]
         labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
         loss=tf.nn.softmax_cross_entropy_with_logits_v2(logits=output_logits,labels=labels)
-
-        # labels = tf.reshape(output_data, [-1])
-        # loss=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
-
-        total_loss=tf.reduce_mean(loss)
+        total_loss = tf.reduce_mean(loss)
         tf.summary.scalar('total_loss', total_loss)
-        train_op=tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
+
+
 
         end_points['initial_state']=initial_state
         end_points['output'] = output
-        end_points['train_op'] = train_op
-        end_points['total_loss'] = total_loss
+
         end_points['loss'] = loss
+        end_points['total_loss'] = total_loss
         end_points['last_state'] = last_state
+
+
+        # Use sparse softmax
+        labels2 = tf.reshape(output_data, [-1])
+        loss2=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels2)
+        total_loss2 = tf.reduce_mean(loss2)
+        tf.summary.scalar('total_loss2', total_loss2)
+        end_points['loss2'] = loss2
+        end_points['total_loss2'] = total_loss
+
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(total_loss2)
+        end_points['train_op'] = train_op
+
     # prediction
     else:
         prediction=tf.nn.softmax(output_logits)
@@ -228,13 +238,13 @@ def run_training():
 
                 input_data_value,output_data_value=next(bg)
                 if (global_step_value+1) % FLAGS.training_echo_interval == 0:
-                    loss, _, _, _, global_step_value,summary = sess.run(
-                        [end_points['total_loss'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
+                    loss2, _, _, _, global_step_value,summary = sess.run(
+                        [end_points['loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
                     epoch = math.ceil(global_step_value / epoch_size)
                     batch = math.ceil((global_step_value - (epoch-1) * epoch_size)/FLAGS.batch_size)
-                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss),flush=True)
+                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss2),flush=True)
                     writer.add_summary(summary, global_step_value)
                     writer.flush()
                 else:
