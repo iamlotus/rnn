@@ -315,7 +315,7 @@ def run_gen():
 def main(_):
 
 
-    print(u"系统参数: \n"
+    print("System FLAGS\n"
           "mode={mode}, batch_size={batch_size}, rnn_size={rnn_size}, learning_rate={learning_rate} \n"
           "model_dir='{model_dir}', log_dir='{log_dir}', file_path='{file_path}' \n"
           "cell_type='{cell_type}', model_prefix='{model_prefix}', epochs={epochs} \n"
