@@ -54,7 +54,7 @@ def process_poems(file_path):
                 error_line += 1
                 pass
 
-    print("%d poems processed totally, %d poems error and skipped, %d poems left" %(total_line,error_line,len(poems)))
+
 
     all_words= [word for poem in poems for word in poem]
     # print("%d words totally"%len(all_words))
@@ -66,6 +66,8 @@ def process_poems(file_path):
     words = words +(' ',)
     word_idx_map=dict(zip(words,range(len(words))))
     poems_vector=[list(map(lambda word:word_idx_map[word],poem)) for poem in poems]
+
+    print("共找到%d首诗, 有%d首无法处理, 一共处理%d首，共计%d个词" % (total_line, error_line, len(poems),len(words)))
     return poems_vector,word_idx_map,words
 
 
