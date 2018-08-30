@@ -20,8 +20,8 @@ tf.app.flags.DEFINE_integer('training_echo_interval', 2, 'echo logs interval dur
 tf.app.flags.DEFINE_integer('training_save_interval', 100, 'save model interval during training.')
 tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
 tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
-tf.app.flags.DEFINE_string('min_content_length', '5', '''content which length is less than it will be skipped''')
-tf.app.flags.DEFINE_string('max_content_length', '80', '''content which length is greater than it will be skipped''')
+tf.app.flags.DEFINE_integer('min_content_length', '5', '''content which length is less than it will be skipped''')
+tf.app.flags.DEFINE_integer('max_content_length', '80', '''content which length is greater than it will be skipped''')
 
 FLAGS=tf.app.flags.FLAGS
 start_token='B'
