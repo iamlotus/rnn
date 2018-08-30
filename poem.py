@@ -150,23 +150,19 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
     output_bias=tf.get_variable('bias',initializer=tf.zeros([vocab_size]))
     # [?,vocab_size]
     output_logits =tf.nn.bias_add(tf.matmul(output,output_weights),bias=output_bias)
+    end_points['initial_state'] = initial_state
+    end_points['output'] = output
 
     # training
     if output_data is not None:
         # [?,vocab_size]
-        labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
-        loss=tf.nn.softmax_cross_entropy_with_logits_v2(logits=output_logits,labels=labels)
-        total_loss = tf.reduce_mean(loss)
-        tf.summary.scalar('total_loss', total_loss)
-
-
-
-        end_points['initial_state']=initial_state
-        end_points['output'] = output
-
-        end_points['loss'] = loss
-        end_points['total_loss'] = total_loss
-        end_points['last_state'] = last_state
+        # labels=tf.one_hot(tf.reshape(output_data,[-1]),depth=vocab_size)
+        # loss=tf.nn.softmax_cross_entropy_with_logits_v2(logits=output_logits,labels=labels)
+        # total_loss = tf.reduce_mean(loss)
+        # tf.summary.scalar('total_loss', total_loss)
+        # end_points['loss'] = loss
+        # end_points['total_loss'] = total_loss
+        # end_points['last_state'] = last_state
 
 
         # Use sparse softmax
@@ -175,7 +171,7 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
         total_loss2 = tf.reduce_mean(loss2)
         tf.summary.scalar('total_loss2', total_loss2)
         end_points['loss2'] = loss2
-        end_points['total_loss2'] = total_loss
+        end_points['total_loss2'] = total_loss2
 
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(total_loss2)
         end_points['train_op'] = train_op
@@ -188,6 +184,7 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
         end_points['prediction'] = prediction
 
     return end_points
+
 
 def run_training():
     if not os.path.exists(FLAGS.model_dir):
@@ -259,9 +256,7 @@ def run_training():
         except KeyboardInterrupt:
             print('Interrupt manually, try saving checkpoint for now')
             saver.save(sess, os.path.join(FLAGS.model_dir, FLAGS.model_prefix), global_step=global_step_value)
-            print('Save model[global_step = %d]' % (global_step_value),flush=True)
-
-
+            print('Save model[global_step = %d]' % global_step_value,flush=True)
 
 
 class PoemGen:
@@ -340,8 +335,6 @@ def run_gen():
 
 
 def main(_):
-
-
     print("System FLAGS\n"
           "mode={mode}, batch_size={batch_size}, rnn_size={rnn_size}, learning_rate={learning_rate} \n"
           "model_dir='{model_dir}', log_dir='{log_dir}', file_path='{file_path}' \n"
