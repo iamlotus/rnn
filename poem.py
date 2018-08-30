@@ -152,6 +152,7 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
     output_logits =tf.nn.bias_add(tf.matmul(output,output_weights),bias=output_bias)
     end_points['initial_state'] = initial_state
     end_points['output'] = output
+    end_points['last_state'] = last_state
 
     # training
     if output_data is not None:
@@ -162,7 +163,6 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
         # tf.summary.scalar('total_loss', total_loss)
         # end_points['loss'] = loss
         # end_points['total_loss'] = total_loss
-        # end_points['last_state'] = last_state
 
 
         # Use sparse softmax
