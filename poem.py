@@ -238,13 +238,13 @@ def run_training():
 
                 input_data_value,output_data_value=next(bg)
                 if (global_step_value+1) % FLAGS.training_echo_interval == 0:
-                    loss2, _, _, _, global_step_value,summary = sess.run(
-                        [end_points['loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
+                    total_loss2, _, _, _, global_step_value,summary = sess.run(
+                        [end_points['total_loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
                     epoch = math.ceil(global_step_value / epoch_size)
                     batch = math.ceil((global_step_value - (epoch-1) * epoch_size)/FLAGS.batch_size)
-                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,loss2),flush=True)
+                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,total_loss2),flush=True)
                     writer.add_summary(summary, global_step_value)
                     writer.flush()
                 else:
