@@ -12,11 +12,13 @@ tf.app.flags.DEFINE_integer('rnn_size', 128, 'rnn hidden size.')
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'learning rate.')
 tf.app.flags.DEFINE_string('model_dir', os.path.abspath('./model'), 'model save path.')
 tf.app.flags.DEFINE_string('log_dir', os.path.abspath('./logs'), 'logs save path.')
-tf.app.flags.DEFINE_string('file_path', os.path.abspath('./data/poems.txt'), 'file name of poems.')
+tf.app.flags.DEFINE_string('train_file_path', os.path.abspath('./data/demo_poems.txt'), 'train file name of poems.')
+tf.app.flags.DEFINE_string('validate_file_path', os.path.abspath('./data/validate_poems.txt'), 'validate file name of poems.')
 tf.app.flags.DEFINE_string('cell_type', 'rnn', 'rnn/gru/lstm')
 tf.app.flags.DEFINE_string('model_prefix', 'poems', 'model save prefix.')
 tf.app.flags.DEFINE_integer('epochs', 500, 'train how many epochs.')
-tf.app.flags.DEFINE_integer('training_echo_interval', 2, 'echo logs interval during training.')
+tf.app.flags.DEFINE_integer('training_echo_interval', 2, 'echo train logs interval.')
+tf.app.flags.DEFINE_integer('validate_echo_interval', 4, 'echo validate logs interval.')
 tf.app.flags.DEFINE_integer('training_save_interval', 100, 'save model interval during training.')
 tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
 tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
@@ -28,45 +30,52 @@ start_token='B'
 end_token='E'
 
 
-def process_poems(file_path):
+def process_poems(train_file_path,validate_file_path):
     """
-    Process txt file specified by `file_path`
-    :param file_path: a txt file, echo poem in one line
+    Process txt file specified by `train_file_path` and `validate_file_path`
+    :param train_file_path: a txt file, echo poem in one line, used to train
+    :param validate_file_path: a txt file, echo poem in one line, used to validate
     :return: (poems_vector,word_idx_map,words), where poems_vector is list<list<wordIdx>>, word_idx_map is map<chinese word, wordIdx>, words is list of all words
     """
     # 诗集
-    poems=[]
-    error_line=0
-    total_line=0
-    with open(file_path,'r',encoding='utf') as f:
+    def read_poem(f):
+        error_line = 0
+        total_line = 0
+        poems = []
         for line in f.readlines():
-            total_line+=1
+            total_line += 1
 
             if not ':' in line:
-                error_line+=1
+                error_line += 1
                 continue
             try:
-                title , content=line.strip().split(':')
-                content=content.replace(' ','')
-                if '_' in content or '(' in content or '（' in content or '《' in content or '[' in content :
-                    error_line+=1
+                title, content = line.strip().split(':')
+                content = content.replace(' ', '')
+                if '_' in content or '(' in content or '（' in content or '《' in content or '[' in content:
+                    error_line += 1
                     continue
 
                 # Calculate loss will convert a whole poem to one-hot format to calculate cross-entory-softmax
                 # If a poem is too long (the longest poem is about 2K), tensor (batch, poem-length, word_num) will be too big to cause OOM
-                if len(content)<FLAGS.min_content_length or len(content)> FLAGS.max_content_length:
+                if len(content) < FLAGS.min_content_length or len(content) > FLAGS.max_content_length:
                     error_line += 1
                     continue
 
-                content= '%s%s%s'%(start_token,content,end_token)
+                content = '%s%s%s' % (start_token, content, end_token)
                 poems.append(content)
             except ValueError as e:
                 error_line += 1
                 pass
+        return error_line,total_line,poems
+
+    with open(train_file_path,'r',encoding='utf') as f:
+            el_train,tl_train,poems_train=read_poem(f)
+    with open(validate_file_path,'r',encoding='utf') as f:
+            el_val,tl_val,poems_val=read_poem(f)
 
 
 
-    all_words= [word for poem in poems for word in poem]
+    all_words= [word for poem in poems_train for word in poem] +[word for poem in poems_val for word in poem]
     # print("%d words totally"%len(all_words))
 
     counter=collections.Counter(all_words)
@@ -75,10 +84,11 @@ def process_poems(file_path):
     # padding with blank
     words = words +(' ',)
     word_idx_map=dict(zip(words,range(len(words))))
-    poems_vector=[list(map(lambda word:word_idx_map[word],poem)) for poem in poems]
+    train_poems_vector=[list(map(lambda word:word_idx_map[word],poem)) for poem in poems_train]
+    val_poems_vector = [list(map(lambda word: word_idx_map[word], poem)) for poem in poems_val]
 
-    print(u"共找到%d首诗, 有%d首无法处理, 一共处理%d首，共计%d个词" % (total_line, error_line, len(poems),len(words)),flush=True)
-    return poems_vector,word_idx_map,words
+    print(u"【训练集】%d诗, %d无法处理, 剩下%d【校验集】%d诗， %d无法处理，剩下%d， 【共计】%d词" % (tl_train, el_train, len(poems_train),tl_val, el_val, len(poems_val),len(words)),flush=True)
+    return train_poems_vector,val_poems_vector,word_idx_map,words
 
 
 def batch_generator(batch_size,poem_vec,fill_value):
@@ -195,12 +205,13 @@ def run_training():
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)
 
-    poems_vector, word_idx_map, words=process_poems(FLAGS.file_path)
+    train_poems_vector,val_poems_vector, word_idx_map, words=process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
     # idx_word_map = dict(map(lambda item: (item[1], item[0]), word_idx_map.items()))
     fill_value = word_idx_map[' ']
-    bg=batch_generator(FLAGS.batch_size, poems_vector, fill_value)
+    train_bg=batch_generator(FLAGS.batch_size, train_poems_vector, fill_value)
+    val_bg = batch_generator(FLAGS.batch_size, val_poems_vector, fill_value)
 
-    epoch_size=len(poems_vector)
+    epoch_size=len(train_poems_vector)
     max_global_step=FLAGS.epochs*epoch_size
 
     input_data=tf.placeholder(tf.int32,[FLAGS.batch_size,None])
@@ -217,7 +228,8 @@ def run_training():
     with tf.Session() as sess:
         run_options = tf.RunOptions()
         # run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-        writer=tf.summary.FileWriter(FLAGS.log_dir,sess.graph)
+        train_writer=tf.summary.FileWriter(FLAGS.log_dir+"/train",sess.graph)
+        validate_writer = tf.summary.FileWriter(FLAGS.log_dir + "/validate", sess.graph)
         sess.run(init_op,options=run_options)
         global_step_value=sess.run(global_step,options=run_options)
 
@@ -235,7 +247,7 @@ def run_training():
                     time.strftime('%Y-%m-%d %H:%M:%S'), FLAGS.epochs, global_step_value),flush=True)
                     return
 
-                input_data_value,output_data_value=next(bg)
+                input_data_value,output_data_value=next(train_bg)
                 if (global_step_value+1) % FLAGS.training_echo_interval == 0:
                     total_loss2, _, _, _, global_step_value,summary = sess.run(
                         [end_points['total_loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
@@ -243,12 +255,26 @@ def run_training():
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
                     epoch = math.ceil(global_step_value / epoch_size)
                     batch = math.ceil((global_step_value - (epoch-1) * epoch_size)/FLAGS.batch_size)
-                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,total_loss2),flush=True)
-                    writer.add_summary(summary, global_step_value)
-                    writer.flush()
+                    train_writer.add_summary(summary, global_step_value)
+                    train_writer.flush()
+                    print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (
+                    time.strftime('%Y-%m-%d %H:%M:%S'),epoch, batch,global_step_value,total_loss2),flush=True)
+
                 else:
                     _,_,global_step_value=sess.run([end_points['train_op'],inc_global_step_op,global_step],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
+
+                if global_step_value%FLAGS.validate_echo_interval==0:
+                    val_input_data_value, val_output_data_value = next(val_bg)
+                    val_total_loss2,val_summary =sess.run([end_points['total_loss2'],merge_summary_op],
+                                            feed_dict={input_data: val_input_data_value, output_data: val_output_data_value},
+                                            options=run_options)
+                    validate_writer.add_summary(val_summary,global_step_value)
+                    validate_writer.flush()
+                    epoch = math.ceil(global_step_value / epoch_size)
+                    batch = math.ceil((global_step_value - (epoch - 1) * epoch_size) / FLAGS.batch_size)
+                    print('[%s] ! Epoch %d, Batch %d, global step %d, Validate Loss2: %.8f' % (
+                    time.strftime('%Y-%m-%d %H:%M:%S'), epoch, batch, global_step_value, val_total_loss2), flush=True)
 
                 if global_step_value % FLAGS.training_save_interval ==0 or global_step_value>=max_global_step:
                     # save every epoch
@@ -276,7 +302,7 @@ class PoemGen:
 
     def __init__(self):
         print('Loading corpus...',flush=True)
-        _, self._word_idx_map, self._words = process_poems(FLAGS.file_path)
+        _, self._word_idx_map, self._words = process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
 
         print('Loading model...',flush=True)
         self._batch_size=1
@@ -339,11 +365,11 @@ def run_gen():
 def main(_):
     print("System FLAGS\n"
           "mode={mode}, batch_size={batch_size}, rnn_size={rnn_size}, learning_rate={learning_rate} \n"
-          "model_dir='{model_dir}', log_dir='{log_dir}', file_path='{file_path}' \n"
+          "model_dir='{model_dir}', log_dir='{log_dir}', train_file_path='{train_file_path}, validate_file_path='{validate_file_path}' \n"
           "cell_type='{cell_type}', model_prefix='{model_prefix}', epochs={epochs} \n"
           "training_echo_interval={training_echo_interval}, training_save_interval={training_save_interval}\n"
           .format(mode=FLAGS.mode, batch_size=FLAGS.batch_size, rnn_size= FLAGS.rnn_size, learning_rate=FLAGS.learning_rate, model_dir= FLAGS.model_dir,
-                  log_dir=FLAGS.log_dir, file_path= FLAGS.file_path, cell_type= FLAGS.cell_type
+                  log_dir=FLAGS.log_dir, train_file_path= FLAGS.train_file_path,validate_file_path= FLAGS.validate_file_path, cell_type= FLAGS.cell_type
                   , model_prefix =FLAGS.model_prefix, epochs=FLAGS.epochs
                   , training_echo_interval=FLAGS.training_echo_interval, training_save_interval=FLAGS.training_save_interval),flush=True)
 
