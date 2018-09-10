@@ -270,10 +270,10 @@ def run_training():
     if need_val:
         val_bg = batch_generator(FLAGS.batch_size, val_poems_vector, fill_value)
 
-    print('words',_words)
+    # print('words',_words)
 
-    epoch_size=len(train_poems_vector)
-    max_global_step=FLAGS.epochs*epoch_size
+    steps_per_epoch=math.ceil(len(train_poems_vector)/FLAGS.batch_size)
+    max_global_step=FLAGS.epochs*steps_per_epoch
 
     input_data=tf.placeholder(tf.int32,[FLAGS.batch_size,None])
     output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, None])
@@ -314,8 +314,8 @@ def run_training():
                         [end_points['total_loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
-                    epoch = math.ceil(global_step_value / epoch_size)
-                    batch = math.ceil((global_step_value - (epoch-1) * epoch_size)/FLAGS.batch_size)
+                    epoch = math.ceil(global_step_value / steps_per_epoch)
+                    batch = math.ceil((global_step_value - (epoch-1) * steps_per_epoch)/FLAGS.batch_size)
                     train_writer.add_summary(summary, global_step_value)
                     train_writer.flush()
                     print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (
@@ -367,7 +367,7 @@ class PoemGen:
         self._words= list(map(lambda x:x[0],sorted(self._word_idx_map.items(),key=operator.itemgetter(1))))
 
         print('Loading model...',flush=True)
-        print('words', self._words)
+        # print('words', self._words)
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
         self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._word_idx_map), rnn_size=FLAGS.rnn_size,
