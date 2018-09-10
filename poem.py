@@ -70,8 +70,12 @@ def process_poems(train_file_path,validate_file_path):
 
     with open(train_file_path,'r',encoding='utf') as f:
             el_train,tl_train,poems_train=read_poem(f)
-    with open(validate_file_path,'r',encoding='utf') as f:
-            el_val,tl_val,poems_val=read_poem(f)
+
+    if os.path.exists(validate_file_path):
+        with open(validate_file_path,'r',encoding='utf') as f:
+                el_val,tl_val,poems_val=read_poem(f)
+    else:
+        el_val,tl_val,poems_val=0,0,[]
 
 
 
@@ -206,10 +210,12 @@ def run_training():
         os.makedirs(FLAGS.log_dir)
 
     train_poems_vector,val_poems_vector, word_idx_map, words=process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
+    need_val= len(val_poems_vector)>0
     # idx_word_map = dict(map(lambda item: (item[1], item[0]), word_idx_map.items()))
     fill_value = word_idx_map[' ']
     train_bg=batch_generator(FLAGS.batch_size, train_poems_vector, fill_value)
-    val_bg = batch_generator(FLAGS.batch_size, val_poems_vector, fill_value)
+    if need_val:
+        val_bg = batch_generator(FLAGS.batch_size, val_poems_vector, fill_value)
 
     epoch_size=len(train_poems_vector)
     max_global_step=FLAGS.epochs*epoch_size
@@ -264,7 +270,7 @@ def run_training():
                     _,_,global_step_value=sess.run([end_points['train_op'],inc_global_step_op,global_step],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
 
-                if global_step_value%FLAGS.validate_echo_interval==0:
+                if need_val and global_step_value%FLAGS.validate_echo_interval==0:
                     val_input_data_value, val_output_data_value = next(val_bg)
                     val_total_loss2,val_summary =sess.run([end_points['total_loss2'],merge_summary_op],
                                             feed_dict={input_data: val_input_data_value, output_data: val_output_data_value},
