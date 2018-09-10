@@ -319,8 +319,8 @@ def run_training():
                         [end_points['total_loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
                         feed_dict={input_data: input_data_value, output_data: output_data_value},options=run_options)
-                    epoch = math.ceil(global_step_value / steps_per_epoch)
-                    batch = math.ceil((global_step_value - (epoch-1) * steps_per_epoch)/FLAGS.batch_size)
+                    epoch = math.ceil(global_step_value / steps_per_epoch) -1
+                    batch = global_step_value - (epoch * steps_per_epoch)
                     train_writer.add_summary(summary, global_step_value)
                     train_writer.flush()
                     print('[%s] Epoch %d, Batch %d, global step %d, Training Loss2: %.8f' % (
