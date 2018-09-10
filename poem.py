@@ -10,6 +10,7 @@ import operator
 
 tf.app.flags.DEFINE_integer('batch_size', 64, 'batch size.')
 tf.app.flags.DEFINE_integer('rnn_size', 128, 'rnn hidden size.')
+tf.app.flags.DEFINE_integer('num_layers', 2, 'rnn num layers.')
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'learning rate.')
 tf.app.flags.DEFINE_string('model_dir', os.path.abspath('./model'), 'model save path.')
 tf.app.flags.DEFINE_string('log_dir', os.path.abspath('./logs'), 'logs save path.')
@@ -169,7 +170,7 @@ def batch_generator(batch_size,poem_vec,fill_value):
 
 
 
-def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
+def rnn_model(model,input_data,output_data,vocab_size,rnn_size,num_layers,learning_rate):
     """
     Create a RNN model 
     :param model: cell model, one of 'rnn'/'gru'/'lstm'
@@ -177,6 +178,7 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
     :param output_data: output_data tensor of shape (batch,time) is used as labels to calculate loss, None in predictions
     :param vocab_size: vocabulary size,
     :param rnn_size: the depth of internal neural network
+    :param num_layers:
     :param learning_rate:
     :return: endpoints
     """
@@ -197,6 +199,8 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,learning_rate):
 
     batch_size= input_data.get_shape()[0]
     cell=cell_fun(**argkws)
+    cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
+
     initial_state=cell.zero_state(batch_size,tf.float32) if output_data is not None else cell.zero_state(1,tf.float32)
     # be equivalent to `tf.matmul(input_data_one_hot, embedding)` but avoid matrix multiply
     embedding=tf.get_variable('embedding',initializer=tf.random_uniform([vocab_size,rnn_size],-1.0,1.0))
@@ -277,7 +281,8 @@ def run_training():
 
     input_data=tf.placeholder(tf.int32,[FLAGS.batch_size,None])
     output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, None])
-    end_points=rnn_model(FLAGS.cell_type,input_data,output_data,vocab_size=len(word_idx_map),rnn_size=FLAGS.rnn_size,learning_rate=FLAGS.learning_rate)
+    end_points=rnn_model(FLAGS.cell_type,input_data,output_data,vocab_size=len(word_idx_map),rnn_size=FLAGS.rnn_size
+                         ,num_layers=FLAGS.num_layers,learning_rate=FLAGS.learning_rate)
     global_step = tf.Variable(0, trainable=False, name='global_step')
     inc_global_step_op = tf.assign_add(global_step, 1, name='inc_global_step')
     merge_summary_op=tf.summary.merge_all()
@@ -332,8 +337,8 @@ def run_training():
                                             options=run_options)
                     validate_writer.add_summary(val_summary,global_step_value)
                     validate_writer.flush()
-                    epoch = math.ceil(global_step_value / epoch_size)
-                    batch = math.ceil((global_step_value - (epoch - 1) * epoch_size) / FLAGS.batch_size)
+                    epoch = math.ceil(global_step_value / steps_per_epoch)
+                    batch = math.ceil((global_step_value - (epoch - 1) * steps_per_epoch) / FLAGS.batch_size)
                     print('[%s] ! Epoch %d, Batch %d, global step %d, Validate Loss2: %.8f' % (
                     time.strftime('%Y-%m-%d %H:%M:%S'), epoch, batch, global_step_value, val_total_loss2), flush=True)
 
@@ -371,7 +376,7 @@ class PoemGen:
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
         self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._word_idx_map), rnn_size=FLAGS.rnn_size,
-                               learning_rate=FLAGS.learning_rate)
+                               num_layers=FLAGS.num_layers,learning_rate=FLAGS.learning_rate)
 
         saver = tf.train.Saver(tf.global_variables())
         init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
