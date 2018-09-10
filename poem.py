@@ -314,7 +314,7 @@ def run_training():
                     return
 
                 input_data_value,output_data_value=next(train_bg)
-                if (global_step_value+1) % FLAGS.training_echo_interval == 0:
+                if  global_step_value==0 or (global_step_value+1) % FLAGS.training_echo_interval == 0:
                     total_loss2, _, _, _, global_step_value,summary = sess.run(
                         [end_points['total_loss2'], end_points['last_state'], end_points['train_op'], inc_global_step_op,
                          global_step,merge_summary_op],
