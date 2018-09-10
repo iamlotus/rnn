@@ -261,6 +261,8 @@ def run_training():
 
 
     word_idx_map, train_poems_vector, val_poems_vector= read_corpus()
+    _words = list(map(lambda x: x[0], sorted(word_idx_map.items(), key=operator.itemgetter(1))))
+
     need_val= len(val_poems_vector)>0
     # idx_word_map = dict(map(lambda item: (item[1], item[0]), word_idx_map.items()))
     fill_value = word_idx_map[' ']
@@ -268,7 +270,7 @@ def run_training():
     if need_val:
         val_bg = batch_generator(FLAGS.batch_size, val_poems_vector, fill_value)
 
-    print('word_idx_map',word_idx_map)
+    print('words',_words)
 
     epoch_size=len(train_poems_vector)
     max_global_step=FLAGS.epochs*epoch_size
@@ -365,7 +367,7 @@ class PoemGen:
         self._words= list(map(lambda x:x[0],sorted(self._word_idx_map.items(),key=operator.itemgetter(1))))
 
         print('Loading model...',flush=True)
-        print('word_idx_map', self._word_idx_map)
+        print('words', self._words)
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
         self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._word_idx_map), rnn_size=FLAGS.rnn_size,
