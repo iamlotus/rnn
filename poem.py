@@ -302,8 +302,7 @@ class PoemGen:
 
     def __init__(self):
         print('Loading corpus...',flush=True)
-        _, self._word_idx_map, self._words = process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
-
+        _, _, self._word_idx_map, self._words = process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
         print('Loading model...',flush=True)
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
