@@ -6,6 +6,7 @@ import math
 import tensorflow as tf
 import os
 import time
+import operator
 
 tf.app.flags.DEFINE_integer('batch_size', 64, 'batch size.')
 tf.app.flags.DEFINE_integer('rnn_size', 128, 'rnn hidden size.')
@@ -28,9 +29,12 @@ tf.app.flags.DEFINE_integer('max_content_length', '80', '''content which length 
 FLAGS=tf.app.flags.FLAGS
 start_token='B'
 end_token='E'
+dict_path=FLAGS.model_dir+'/dict.txt'
+train_path=FLAGS.model_dir+'/train.txt'
+val_path=FLAGS.model_dir+'/val.txt'
 
 
-def process_poems(train_file_path,validate_file_path):
+def process_corpus(train_file_path, validate_file_path):
     """
     Process txt file specified by `train_file_path` and `validate_file_path`
     :param train_file_path: a txt file, echo poem in one line, used to train
@@ -91,8 +95,48 @@ def process_poems(train_file_path,validate_file_path):
     train_poems_vector=[list(map(lambda word:word_idx_map[word],poem)) for poem in poems_train]
     val_poems_vector = [list(map(lambda word: word_idx_map[word], poem)) for poem in poems_val]
 
-    print(u"【训练集】%d诗, %d无法处理, 剩下%d【校验集】%d诗， %d无法处理，剩下%d， 【共计】%d词" % (tl_train, el_train, len(poems_train),tl_val, el_val, len(poems_val),len(words)),flush=True)
-    return train_poems_vector,val_poems_vector,word_idx_map,words
+    print(u"【训练集】%d诗, %d无法处理, 剩下%d\n【校验集】%d诗，%d无法处理，剩下%d，\n【共计】%d词" % (tl_train, el_train, len(poems_train),tl_val, el_val, len(poems_val),len(words)),flush=True)
+
+    # dict
+    with open(dict_path, 'w', encoding='utf') as f:
+        for e in word_idx_map:
+            f.write('%d:%s\n' % (word_idx_map[e],e))
+
+    # train
+    with open(train_path, 'w', encoding='utf') as f:
+        for e in train_poems_vector:
+            f.write('%s\n'%e)
+
+    # validate
+    with open(val_path, 'w', encoding='utf') as f:
+        for e in val_poems_vector:
+            f.write('%s\n'%e)
+
+def read_corpus():
+    with open(dict_path, 'r', encoding='utf') as f:
+        word_idx_map={}
+        for line in f.read().split('\n')[:-1]:
+            pair= line.split(':')
+            word_idx_map[pair[1]]=int(pair[0])
+
+    with open(train_path, 'r', encoding='utf') as f:
+        train_poems_vector=[]
+        for line in f.read().split('\n')[:-1]:
+            poem=[]
+            for v in line[1:-1].split(','):
+                poem.append(int(v))
+            train_poems_vector.append(poem)
+
+    with open(val_path, 'r', encoding='utf') as f:
+        val_poems_vector=[]
+        for line in f.read().split('\n')[:-1]:
+            poem=[]
+            for v in line[1:-1].split(','):
+                poem.append(int(v))
+            val_poems_vector.append(poem)
+
+    return word_idx_map,train_poems_vector,val_poems_vector
+
 
 
 def batch_generator(batch_size,poem_vec,fill_value):
@@ -209,7 +253,14 @@ def run_training():
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)
 
-    train_poems_vector,val_poems_vector, word_idx_map, words=process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
+    if not os.path.exists(dict_path) and not os.path.exists(train_path) and not os.path.exists(val_path):
+        print('创建新的语料库')
+        process_corpus(FLAGS.train_file_path, FLAGS.validate_file_path)
+    else:
+        print('使用已有语料库')
+
+
+    word_idx_map, train_poems_vector, val_poems_vector= read_corpus()
     need_val= len(val_poems_vector)>0
     # idx_word_map = dict(map(lambda item: (item[1], item[0]), word_idx_map.items()))
     fill_value = word_idx_map[' ']
@@ -224,7 +275,7 @@ def run_training():
 
     input_data=tf.placeholder(tf.int32,[FLAGS.batch_size,None])
     output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, None])
-    end_points=rnn_model(FLAGS.cell_type,input_data,output_data,vocab_size=len(words),rnn_size=FLAGS.rnn_size,learning_rate=FLAGS.learning_rate)
+    end_points=rnn_model(FLAGS.cell_type,input_data,output_data,vocab_size=len(word_idx_map),rnn_size=FLAGS.rnn_size,learning_rate=FLAGS.learning_rate)
     global_step = tf.Variable(0, trainable=False, name='global_step')
     inc_global_step_op = tf.assign_add(global_step, 1, name='inc_global_step')
     merge_summary_op=tf.summary.merge_all()
@@ -310,12 +361,14 @@ class PoemGen:
 
     def __init__(self):
         print('Loading corpus...',flush=True)
-        _, _, self._word_idx_map, self._words = process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
+        self._word_idx_map, _,_ = read_corpus()
+        self._words= list(map(lambda x:x[0],sorted(self._word_idx_map.items(),key=operator.itemgetter(1))))
+
         print('Loading model...',flush=True)
         print('word_idx_map', self._word_idx_map)
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
-        self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._words), rnn_size=FLAGS.rnn_size,
+        self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._word_idx_map), rnn_size=FLAGS.rnn_size,
                                learning_rate=FLAGS.learning_rate)
 
         saver = tf.train.Saver(tf.global_variables())
@@ -380,6 +433,7 @@ def main(_):
                   log_dir=FLAGS.log_dir, train_file_path= FLAGS.train_file_path,validate_file_path= FLAGS.validate_file_path, cell_type= FLAGS.cell_type
                   , model_prefix =FLAGS.model_prefix, epochs=FLAGS.epochs
                   , training_echo_interval=FLAGS.training_echo_interval, training_save_interval=FLAGS.training_save_interval),flush=True)
+
 
     if FLAGS.mode=='train':
         run_training()
