@@ -217,6 +217,8 @@ def run_training():
     if need_val:
         val_bg = batch_generator(FLAGS.batch_size, val_poems_vector, fill_value)
 
+    print('word_idx_map',word_idx_map)
+
     epoch_size=len(train_poems_vector)
     max_global_step=FLAGS.epochs*epoch_size
 
@@ -310,6 +312,7 @@ class PoemGen:
         print('Loading corpus...',flush=True)
         _, _, self._word_idx_map, self._words = process_poems(FLAGS.train_file_path,FLAGS.validate_file_path)
         print('Loading model...',flush=True)
+        print('word_idx_map', self._word_idx_map)
         self._batch_size=1
         self._input_data = tf.placeholder(tf.int32, [self._batch_size, None], name='input_data')
         self._end_points = rnn_model(FLAGS.cell_type, input_data=self._input_data, output_data=None, vocab_size=len(self._words), rnn_size=FLAGS.rnn_size,
