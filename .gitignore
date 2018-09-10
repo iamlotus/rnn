@@ -10,4 +10,5 @@
 pyvenv.cfg
 .idea/
 .trainpid
+.tensorboardpid
 test.py
