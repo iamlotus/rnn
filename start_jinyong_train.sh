@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # multiple command in one line
-
-
 if [ -f ".jytrainpid" ]; then
     if [ -d /proc/`cat .jytrainpid` ]; then
         echo found running pid `cat .jytrainpid`
