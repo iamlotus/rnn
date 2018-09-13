@@ -113,6 +113,8 @@ def process_corpus(train_file_path, validate_file_path):
         for e in val_poems_vector:
             f.write('%s\n'%e)
 
+
+
 def read_corpus():
     with open(dict_path, 'r', encoding='utf') as f:
         word_idx_map={}
@@ -233,6 +235,10 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,num_layers,learni
         labels2 = tf.reshape(output_data, [-1])
         loss2=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels2)
         total_loss2 = tf.reduce_mean(loss2)
+        with tf.name_scope("hidden"):
+            tf.summary.histogram("embedding",embedding)
+            tf.summary.histogram("output_weights",output_weights)
+            tf.summary.histogram("output_bias", output_bias)
         tf.summary.scalar('total_loss2', total_loss2)
         end_points['loss2'] = loss2
         end_points['total_loss2'] = total_loss2
@@ -243,7 +249,6 @@ def rnn_model(model,input_data,output_data,vocab_size,rnn_size,num_layers,learni
     # prediction
     else:
         prediction=tf.nn.softmax(output_logits)
-        end_points['initial_state'] = initial_state
         end_points['last_state'] = last_state
         end_points['prediction'] = prediction
 
