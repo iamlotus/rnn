@@ -285,7 +285,7 @@ class JinYongModel:
                     print('[%s]global step %d, Training Loss: %.10f' % (
                     time.strftime('%Y-%m-%d %H:%M:%S'),self.global_step_value,total_loss),flush=True)
                 else:
-                    _,_=self.sess.run([self.end_points['train_op'],self.inc_global_step_op],feed_dict=get_feed_dict(),options=self.run_options)
+                    _,_,self.global_step_value=self.sess.run([self.end_points['train_op'],self.inc_global_step_op,self.global_step],feed_dict=get_feed_dict(),options=self.run_options)
 
                 if self.global_step_value%FLAGS.save_checkpoints_steps==0:
                     # 保存模型
