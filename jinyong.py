@@ -18,8 +18,8 @@ tf.app.flags.DEFINE_string('model_prefix', 'jinyong', 'model save prefix.')
 tf.app.flags.DEFINE_integer('epochs', 1, 'train how many epochs.')
 tf.app.flags.DEFINE_integer('training_echo_interval', 1, 'echo train logs interval.')
 tf.app.flags.DEFINE_integer('save_checkpoints_steps', 2, 'save model interval during training.')
-tf.app.flags.DEFINE_integer('gen_line_interval', 4, 'generate demo line interval.')
 tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
+tf.app.flags.DEFINE_bool('use_small_train','False' , 'use small train dataset or full train dataset')
 tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
 
 FLAGS=tf.app.flags.FLAGS
@@ -28,6 +28,7 @@ end_token='E'
 data_path='data/jinyong'
 dict_path=data_path+'/dict.txt'
 train_path=data_path+'/train.tfrecords'
+small_train_path=data_path+'/small_train.tfrecords'
 # 开始
 SOS='SOS'
 # 结束
@@ -50,7 +51,6 @@ def print_args():
     print("cuda_visible_devices = '%s'" % FLAGS.cuda_visible_devices)
     print("epochs = %d" % FLAGS.epochs)
     print("training_echo_interval = %d" % FLAGS.training_echo_interval)
-    print("gen_line_interval = %d" % FLAGS.gen_line_interval)
     print("save_checkpoints_steps = %d" % FLAGS.save_checkpoints_steps)
     print(flush=True)
 
@@ -109,6 +109,23 @@ def process_corpus(src_path):
     print("【创建训练数据】%s" % train_path)
 
 
+    with tf.python_io.TFRecordWriter(small_train_path) as writer:
+        # 取中间4个
+        mid=int(len(sequences)/2)
+        small_sequences=sequences[mid:mid+4]
+        for seq in small_sequences:
+            feature={
+                'inputs':_int64list_feature([sos_idx]+seq), # 输入需要在前面添加SOS
+                'targets': _int64list_feature(seq+[eos_idx])  # 输出需要在后面添加EOS
+            }
+            # example对象对输入和输出数据进行封装
+            example= tf.train.Example(features=tf.train.Features(feature=feature))
+            writer.write(example.SerializeToString()) # 序列化为字符串
+    print("【创建小训练集】%s" % small_train_path)
+    for i,s in enumerate(small_sequences):
+        print('数据%d:%s'%(i, ''.join(list(map(words.__getitem__,s)))))
+
+
 def _read_dict():
     # 读取words
     with open(dict_path, 'r', encoding='utf') as f:
@@ -126,7 +143,7 @@ def _read_train_data(batch_size):
     """
 
     # 读取tf records
-    filenames=[train_path]
+    filenames=[train_path] if FLAGS.use_small_train else [small_train_path]
     dataset=tf.data.TFRecordDataset(filenames)
 
     def _parse_function(example_proto):
@@ -242,8 +259,13 @@ class JinYongModel:
         self._load_model()
 
     def _load_model(self):
-        self.inputs=tf.placeholder(tf.int64,shape=[FLAGS.batch_size,None],name='input')
-        self.targets = tf.placeholder(tf.int64, shape=[FLAGS.batch_size, None],name='targets')
+        if FLAGS.mode=='gen':
+            self.inputs=tf.placeholder(tf.int64,shape=[FLAGS.batch_size,None],name='input')
+            self.targets = None
+        elif FLAGS.mode=='train':
+            self.inputs, self.targets = _read_train_data(FLAGS.batch_size)
+        else:
+            raise  ValueError('unknown FLAGS.mode:%s'%FLAGS.mode)
 
         self.end_points = rnn_model(FLAGS.cell_type, self.inputs, self.targets, vocab_size=len(self.dict), rnn_size=FLAGS.rnn_size
                                , num_layers=FLAGS.num_layers, learning_rate=FLAGS.learning_rate)
@@ -269,34 +291,23 @@ class JinYongModel:
             print("找不到检查点[%s],从头开始训练" % FLAGS.model_dir, flush=True)
 
     def train(self):
-        inputs,target= _read_train_data(FLAGS.batch_size)
-        def get_feed_dict():
-            i,t=self.sess.run([inputs,target])
-            return {self.inputs:i,self.targets:i}
-
         try:
             while True:
                 if self.global_step_value==0 or (self.global_step_value+1) % FLAGS.training_echo_interval == 0:
                     total_loss, _, _, _, self.global_step_value,summary = self.sess.run(
                         [self.end_points['total_loss'], self.end_points['last_state'], self.end_points['train_op'], self.inc_global_step_op,
-                         self.global_step,self.merge_summary_op],feed_dict=get_feed_dict(),options=self.run_options)
+                         self.global_step,self.merge_summary_op],options=self.run_options)
                     self.train_writer.add_summary(summary, self.global_step_value)
                     self.train_writer.flush()
                     print('[%s]global step %d, Training Loss: %.10f' % (
                     time.strftime('%Y-%m-%d %H:%M:%S'),self.global_step_value,total_loss),flush=True)
                 else:
-                    _,_,self.global_step_value=self.sess.run([self.end_points['train_op'],self.inc_global_step_op,self.global_step],feed_dict=get_feed_dict(),options=self.run_options)
+                    _,_,self.global_step_value=self.sess.run([self.end_points['train_op'],self.inc_global_step_op,self.global_step],options=self.run_options)
 
                 if self.global_step_value%FLAGS.save_checkpoints_steps==0:
                     # 保存模型
                     self.saver.save(self.sess, os.path.join(FLAGS.model_dir, FLAGS.model_prefix), global_step=self.global_step_value)
                     print('[%s]保存模型[global_step = %d]' % (time.strftime('%Y-%m-%d %H:%M:%S'), self.global_step_value),
-                          flush=True)
-
-                if self.global_step_value%FLAGS.gen_line_interval==0:
-                    # 生成例句
-                    sentence=self._gen_sentence(-1)
-                    print('[%s]生成例句[global_step = %d]:%s' % (time.strftime('%Y-%m-%d %H:%M:%S'),self.global_step_value,sentence),
                           flush=True)
         except (StopIteration):
             self.saver.save(self.sess, os.path.join(FLAGS.model_dir, FLAGS.model_prefix), global_step=self.global_step_value)
@@ -314,20 +325,19 @@ class JinYongModel:
             word_idx=begin_word_idx
         else:
             # 随机生成首字
-            # 构造batch_size大小的输入，但实际起用的只是第一行
-            x =np.repeat(self._sos_idx,FLAGS.batch_size).reshape(FLAGS.batch_size,1)
-
+            x =np.array([[self._sos_idx]])
             predict, last_state = self.sess.run([self.end_points['prediction'], self.end_points['last_state']],
                                                  feed_dict={self.inputs:x})
             word_idx=self._to_word_idx(predict[0])
 
         sentence=[]
+        sentence.append(word_idx)
         while word_idx!=self._eos_idx:
             if len(sentence)>80:
                 break
 
             # 构造batch_size大小的输入，但实际起用的只是第一行
-            x = np.repeat(word_idx, FLAGS.batch_size).reshape(FLAGS.batch_size, 1)
+            x = np.array([[word_idx]])
             predict, last_state = self.sess.run([self.end_points['prediction'], self.end_points['last_state']],
                                                  feed_dict={self.inputs: x})
             word_idx=self._to_word_idx(predict[0])
