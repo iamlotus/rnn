@@ -38,6 +38,7 @@ EOS='EOS'
 def print_args():
     print("系统变量")
     print("mode = '%s'" % FLAGS.mode)
+    print("use_small_train = %s" % FLAGS.use_small_train)
     print("batch_size = %d" % FLAGS.batch_size)
     print("rnn_size = %d" % FLAGS.rnn_size)
     print("learning_rate = %f" % FLAGS.learning_rate)
