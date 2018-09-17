@@ -144,7 +144,7 @@ def _read_train_data(batch_size):
     """
 
     # 读取tf records
-    filenames=[train_path] if FLAGS.use_small_train else [small_train_path]
+    filenames=[small_train_path] if FLAGS.use_small_train else [train_path]
     dataset=tf.data.TFRecordDataset(filenames)
 
     def _parse_function(example_proto):
