@@ -261,7 +261,7 @@ class JinYongModel:
 
     def _load_model(self):
         if FLAGS.mode=='gen':
-            self.inputs=tf.placeholder(tf.int64,shape=[FLAGS.batch_size,None],name='input')
+            self.inputs=tf.placeholder(tf.int64,shape=[1,None],name='input')
             self.targets = None
         elif FLAGS.mode=='train':
             self.inputs, self.targets = _read_train_data(FLAGS.batch_size)
