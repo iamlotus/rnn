@@ -18,7 +18,7 @@ tf.app.flags.DEFINE_string('model_prefix', 'jinyong', 'model save prefix.')
 tf.app.flags.DEFINE_integer('epochs', 1, 'train how many epochs.')
 tf.app.flags.DEFINE_integer('training_echo_interval', 1, 'echo train logs interval.')
 tf.app.flags.DEFINE_integer('save_checkpoints_steps', 2, 'save model interval during training.')
-tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
+tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poems use model')
 tf.app.flags.DEFINE_bool('use_small_train','False' , 'use small train dataset or full train dataset')
 tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
 

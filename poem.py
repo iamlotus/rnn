@@ -12,8 +12,8 @@ tf.app.flags.DEFINE_integer('batch_size', 64, 'batch size.')
 tf.app.flags.DEFINE_integer('rnn_size', 128, 'rnn hidden size.')
 tf.app.flags.DEFINE_integer('num_layers', 2, 'rnn num layers.')
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'learning rate.')
-tf.app.flags.DEFINE_string('model_dir', os.path.abspath('./model/poem'), 'model save path.')
-tf.app.flags.DEFINE_string('log_dir', os.path.abspath('./logs/poem'), 'logs save path.')
+tf.app.flags.DEFINE_string('model_dir', os.path.abspath('./model/poems'), 'model save path.')
+tf.app.flags.DEFINE_string('log_dir', os.path.abspath('./logs/poems'), 'logs save path.')
 tf.app.flags.DEFINE_string('train_file_path', os.path.abspath('./data/demo_poems.txt'), 'train file name of poems.')
 tf.app.flags.DEFINE_string('validate_file_path', os.path.abspath('./data/validate_poems.txt'), 'validate file name of poems.')
 tf.app.flags.DEFINE_string('cell_type', 'rnn', 'rnn/gru/lstm')
@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_integer('epochs', 500, 'train how many epochs.')
 tf.app.flags.DEFINE_integer('training_echo_interval', 2, 'echo train logs interval.')
 tf.app.flags.DEFINE_integer('validate_echo_interval', 4, 'echo validate logs interval.')
 tf.app.flags.DEFINE_integer('training_save_interval', 100, 'save model interval during training.')
-tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poem use model')
+tf.app.flags.DEFINE_string('mode','train' , 'train/gen, train model or gen poems use model')
 tf.app.flags.DEFINE_string('cuda_visible_devices', '0', '''[Train] visible GPU ''')
 tf.app.flags.DEFINE_integer('min_content_length', '5', '''content which length is less than it will be skipped''')
 tf.app.flags.DEFINE_integer('max_content_length', '80', '''content which length is greater than it will be skipped''')
@@ -38,8 +38,8 @@ val_path=FLAGS.model_dir+'/val.txt'
 def process_corpus(train_file_path, validate_file_path):
     """
     Process txt file specified by `train_file_path` and `validate_file_path`
-    :param train_file_path: a txt file, echo poem in one line, used to train
-    :param validate_file_path: a txt file, echo poem in one line, used to validate
+    :param train_file_path: a txt file, echo poems in one line, used to train
+    :param validate_file_path: a txt file, echo poems in one line, used to validate
     :return: (poems_vector,word_idx_map,words), where poems_vector is list<list<wordIdx>>, word_idx_map is map<chinese word, wordIdx>, words is list of all words
     """
     # 诗集
@@ -60,8 +60,8 @@ def process_corpus(train_file_path, validate_file_path):
                     error_line += 1
                     continue
 
-                # Calculate loss will convert a whole poem to one-hot format to calculate cross-entory-softmax
-                # If a poem is too long (the longest poem is about 2K), tensor (batch, poem-length, word_num) will be too big to cause OOM
+                # Calculate loss will convert a whole poems to one-hot format to calculate cross-entory-softmax
+                # If a poems is too long (the longest poems is about 2K), tensor (batch, poems-length, word_num) will be too big to cause OOM
                 if len(content) < FLAGS.min_content_length or len(content) > FLAGS.max_content_length:
                     error_line += 1
                     continue
