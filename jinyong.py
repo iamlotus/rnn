@@ -29,6 +29,7 @@ data_path='data/jinyong'
 dict_path=data_path+'/dict.txt'
 train_path=data_path+'/train.tfrecords'
 small_train_path=data_path+'/small_train.tfrecords'
+small_train_txt=data_path+'/small_train.txt'
 # 开始
 SOS='SOS'
 # 结束
@@ -111,9 +112,9 @@ def process_corpus(src_path):
 
 
     with tf.python_io.TFRecordWriter(small_train_path) as writer:
-        # 取中间4个
-        mid=int(len(sequences)/2)
-        small_sequences=sequences[mid:mid+4]
+        # 取中间1个
+        mid=100
+        small_sequences=sequences[mid:mid+1]
         for seq in small_sequences:
             feature={
                 'inputs':_int64list_feature([sos_idx]+seq), # 输入需要在前面添加SOS
@@ -125,6 +126,11 @@ def process_corpus(src_path):
     print("【创建小训练集】%s" % small_train_path)
     for i,s in enumerate(small_sequences):
         print('数据%d:%s'%(i, ''.join(list(map(words.__getitem__,s)))))
+
+    print("【小训练集】%s" % small_train_txt)
+    with open(small_train_txt,'w') as writer:
+        for s in small_sequences:
+            writer.write(''.join(list(map(words.__getitem__,s))))
 
 
 def _read_dict():
