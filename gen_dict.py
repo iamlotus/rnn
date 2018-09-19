@@ -72,7 +72,7 @@ def process_corpus():
     word_idx_map = dict(zip(words, range(len(words))))
     # train_vectors = [list(map(lambda word: word_idx_map[word], line)) for line in lines]
 
-    print("【数据集】共%d行，%d行无法处理，剩余%d行。【共计】%d词"%(total_line,error_line,len(lines),len(word_idx_map)))
+    print("【数据集】共%d行，%d行无法处理，剩余%d行。【共计】%d词(去重),%d字(全文)"%(total_line,error_line,len(lines),len(word_idx_map),len(all_words)))
 
     dict_path=os.path.join(data_dir,FLAGS.dict_name)
     with open(dict_path, 'w', encoding='utf') as f:
