@@ -7,12 +7,12 @@ if [ -f ".mpmtrainid" ]; then
     else
         rm .mpmtrainid \
         && echo [remove dead pid `cat .mpmtrainid`] \
-        && nohup python3 model.py --cuda_visible_devices=1 --mode=train --data_type=poems --train_corpus_name=small_train_corpus.txt --cell_type=lstm --rnn_size=256 --num_layers=3 --learning_rate=0.00001 --batch_size=64 --epochs=20000 --training_echo_interval=100 --training_save_interval=1000 >logs/poems/train.out 2>&1 & echo $! > .mpmtrainid \
+        && nohup python3 model.py --cuda_visible_devices=1 --mode=train --data_type=poems --train_corpus_name=small_train_corpus.txt --cell_type=lstm --rnn_size=512 --num_layers=3 --learning_rate=0.00001 --batch_size=64 --epochs=20000 --training_echo_interval=100 --training_save_interval=1000 >logs/poems/train.out 2>&1 & echo $! > .mpmtrainid \
         && echo [train started] \
         && busybox tail -f logs/poems/train.out
     fi
 else
-    nohup python3 model.py --cuda_visible_devices=1 --mode=train --data_type=poems --train_corpus_name=small_train_corpus.txt --cell_type=lstm --rnn_size=256 --num_layers=3 --learning_rate=0.00001 --batch_size=64 --epochs=20000 --training_echo_interval=100 --training_save_interval=1000 >logs/poems/train.out 2>&1 & echo $! > .mpmtrainid \
+    nohup python3 model.py --cuda_visible_devices=1 --mode=train --data_type=poems --train_corpus_name=small_train_corpus.txt --cell_type=lstm --rnn_size=512 --num_layers=3 --learning_rate=0.00001 --batch_size=64 --epochs=20000 --training_echo_interval=100 --training_save_interval=1000 >logs/poems/train.out 2>&1 & echo $! > .mpmtrainid \
     && echo [train started] \
     && busybox tail -f logs/poems/train.out
 fi
