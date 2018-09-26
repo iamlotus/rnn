@@ -280,6 +280,8 @@ class RNN:
             global_step_value=sess.run(tf.train.get_or_create_global_step())
             try:
                 while global_step_value<=max_step:
+                    print("【global_step_value=%d】" % global_step_value, flush=True)
+
                     validate_batch_id=0
                     epoch_id = global_step_value // train_dp.batch_num
                     batch_id = global_step_value % train_dp.batch_num
@@ -342,7 +344,7 @@ class RNN:
                         print('[%s] Save model %s-%d' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path,global_step_value),
                               flush=True)
 
-                    print("[new_global_step_value=%d]"%new_global_step_value,flush=True)
+                    print("【new_global_step_value=%d】"%new_global_step_value,flush=True)
                     global_step_value=new_global_step_value
     
                 # 结束时保存模型
