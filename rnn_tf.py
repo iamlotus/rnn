@@ -341,7 +341,8 @@ class RNN:
                         saver.save(sess, file_path, global_step=global_step_value)
                         print('[%s] Save model %s-%d' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path,global_step_value),
                               flush=True)
-    
+
+                    print("new_global_step_value=%d",new_global_step_value)
                     global_step_value=new_global_step_value
     
                 # 结束时保存模型
