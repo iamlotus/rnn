@@ -252,9 +252,10 @@ class RNN:
 
     def train(self):
         train_data,validate_data=read_input(self.chars)
-        print('Find %d records in train set and %d records in validate set' % (len(train_data),len(validate_data)))
+        train_dp, validate_dp = DataProvider(train_data), DataProvider(validate_data)
+        print('Find %d records(%d batches) in train set and %d records(%d batchs) in validate set' % (len(train_data),train_dp.batch_num,len(validate_data),validate_dp.batch_num))
 
-        train_dp,validate_dp = DataProvider(train_data),DataProvider(validate_data)
+
 
         input_data = tf.placeholder(tf.int32, [FLAGS.batch_size, FLAGS.sequence_len], 'input_data')
         output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, FLAGS.sequence_len], 'output_data')
