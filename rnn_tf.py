@@ -205,7 +205,7 @@ def rnn_model(cell_type, input_data, output_data, batch_num, vocab_size, rnn_siz
             tf.summary.histogram("output_weights",output_weights)
             tf.summary.histogram("output_bias", output_bias)
         tf.summary.scalar('total_loss', total_loss)
-        tf.summary.scalar('leanring_rate',learning_rate)
+        tf.summary.scalar('learning_rate',learning_rate)
         end_points['loss'] = loss
         end_points['total_loss'] = total_loss
         end_points['learning_rate'] = learning_rate
@@ -280,8 +280,6 @@ class RNN:
             global_step_value=sess.run(tf.train.get_or_create_global_step())
             try:
                 while global_step_value<=max_step:
-                    print("【global_step_value=%d】" % global_step_value, flush=True)
-
                     validate_batch_id=0
                     epoch_id = global_step_value // train_dp.batch_num
                     batch_id = global_step_value % train_dp.batch_num
@@ -289,9 +287,9 @@ class RNN:
                     if global_step_value%FLAGS.print_train_every == 0 and global_step_value%FLAGS.print_validate_every==0:
                         # train & validate
                         validate_x,validate_y=validate_dp.next(validate_batch_id%validate_dp.batch_num)
-                        _,train_total_loss,train_summary,new_global_step_value,learning_rate_value\
+                        _,train_total_loss,train_summary,learning_rate_value\
                             = sess.run([endpoints['train_op'], endpoints['total_loss'],
-                                            merge_summary_op,tf.train.get_or_create_global_step(),
+                                            merge_summary_op,
                                              endpoints['learning_rate']],feed_dict={input_data:train_x,output_data:train_y})
                         
                         validate_total_loss,validate_summary = sess.run([endpoints['total_loss'],merge_summary_op],
@@ -306,9 +304,9 @@ class RNN:
                               (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss))
                     elif global_step_value%FLAGS.print_train_every == 0:
                         # validate only
-                        _, train_total_loss, train_summary, new_global_step_value, learning_rate_value \
+                        _, train_total_loss, train_summary,  learning_rate_value \
                             = sess.run([endpoints['train_op'], endpoints['total_loss'],
-                                             merge_summary_op, tf.train.get_or_create_global_step(),
+                                             merge_summary_op,
                                              endpoints['learning_rate']],
                                             feed_dict={input_data: train_x, output_data: train_y})
                         train_writer.add_summary(train_summary, global_step_value)
@@ -318,9 +316,8 @@ class RNN:
                     elif global_step_value%FLAGS.print_validate_every==0:
                         # train only
                         validate_x, validate_y = validate_dp.next(validate_batch_id % validate_dp.batch_num)
-                        _, train_total_loss, new_global_step_value = sess.run(
-                            [endpoints['train_op'], merge_summary_op,
-                             tf.train.get_or_create_global_step()],
+                        _, train_total_loss= sess.run(
+                            [endpoints['train_op'], merge_summary_op],
                             feed_dict={input_data: train_x, output_data: train_y})
                         validate_total_loss, validate_summary = sess.run(
                             [endpoints['total_loss'], merge_summary_op],
@@ -332,9 +329,8 @@ class RNN:
                                                                                global_step_value,epoch_id, batch_id, validate_total_loss))
                     else:
                         # nothing
-                        _, new_global_step_value = sess.run(
-                            [endpoints['train_op'],
-                             tf.train.get_or_create_global_step()],
+                        _, = sess.run(
+                            [endpoints['train_op']],
                             feed_dict={input_data: train_x, output_data: train_y})
     
                     if global_step_value % FLAGS.save_model_every == 0:
@@ -344,10 +340,10 @@ class RNN:
                         print('[%s] Save model %s-%d' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path,global_step_value),
                               flush=True)
 
-                    print("【new_global_step_value=%d】"%new_global_step_value,flush=True)
-                    global_step_value=new_global_step_value
+                    # global_step has been increased by optimizer
+                    global_step_value=sess.run(tf.train.get_or_create_global_step())
     
-                # 结束时保存模型
+                # save when exit
                 saver.save(sess, file_path, global_step=global_step_value)
             except KeyboardInterrupt as e:
                 print('Meet KeyboardInterrupt %s'%e)
