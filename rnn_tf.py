@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import re
 import numpy as np
 import math
 import tensorflow as tf
@@ -405,7 +404,7 @@ if __name__ == '__main__':
     def main(_):
         print('='*100)
         print('[FLAGS]')
-        for k,v in FLAGS.flag_values_dict().items():
+        for k,v in sorted(FLAGS.flag_values_dict().items(),key=operator.itemgetter(0)):
             if k in ['h','help','helpfull','helpshort']:
                 continue
 
