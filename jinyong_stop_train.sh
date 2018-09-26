@@ -7,5 +7,5 @@ if [ -f ".jytrainpid" ]; then
      echo remove dead pid `cat .jytrainpid` && rm .jytrainpid
   fi
 else
-    echo nothing to stop, can not find .jytrainpid file
+    echo can not find .jytrainpid file, nothing to stop
 fi

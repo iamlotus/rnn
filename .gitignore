@@ -9,8 +9,7 @@
 *.pyc
 pyvenv.cfg
 .idea/
-.trainpid
-.tensorboardpid
+.*pid
 *.dict
 *.train
 *.validate
