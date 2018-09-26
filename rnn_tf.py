@@ -20,7 +20,7 @@ tf.app.flags.DEFINE_float('learning_rate_decay_ratio', 0.99, 'learning rate deca
 tf.app.flags.DEFINE_float('learning_rate_decay_every', 2, 'epoch numbers that learning rate will decay.')
 tf.app.flags.DEFINE_string('input_path', 'data/jinyong.txt', 'input dir.')
 tf.app.flags.DEFINE_string('encoding',None, 'data encoding, ascii/utf/etc. default is None (binary)')
-tf.app.flags.DEFINE_string('cell_type', 'rnn', 'rnn/gru/lstm')
+tf.app.flags.DEFINE_string('cell_type', 'lstm', 'rnn/gru/lstm')
 tf.app.flags.DEFINE_integer('max_epochs', 50000, 'train epochs.')
 tf.app.flags.DEFINE_float('validate_set_ratio', 0.05, 'how many data are used as validate set.')
 tf.app.flags.DEFINE_integer('print_train_every', 30, 'print train every steps.')
