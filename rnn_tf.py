@@ -300,7 +300,7 @@ class RNN:
                         validate_writer.add_summary(validate_summary,global_step_value)
                         validate_writer.flush()
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f, Validate Loss=%.8f'%
-                              (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss))
+                              (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss),flush=True)
                     elif global_step_value%FLAGS.print_train_every == 0:
                         # validate only
                         _, train_total_loss, train_summary,  learning_rate_value \
@@ -311,7 +311,7 @@ class RNN:
                         train_writer.add_summary(train_summary, global_step_value)
                         train_writer.flush()
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f' % (
-                        time.strftime('%Y-%m-%d %H:%M:%S'), global_step_value,epoch_id, batch_id, train_total_loss, learning_rate_value))
+                        time.strftime('%Y-%m-%d %H:%M:%S'), global_step_value,epoch_id, batch_id, train_total_loss, learning_rate_value),flush=True)
                     elif global_step_value%FLAGS.print_validate_every==0:
                         # train only
                         validate_x, validate_y = validate_dp.next(validate_batch_id % validate_dp.batch_num)
@@ -325,7 +325,7 @@ class RNN:
                         validate_writer.add_summary(validate_summary, global_step_value)
                         validate_writer.flush()
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Validate Loss=%.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),
-                                                                               global_step_value,epoch_id, batch_id, validate_total_loss))
+                                                                               global_step_value,epoch_id, batch_id, validate_total_loss),flush=True)
                     else:
                         # nothing
                         _, = sess.run(
