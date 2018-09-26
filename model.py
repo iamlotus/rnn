@@ -32,7 +32,7 @@ def read_dict():
     """
        读出词典 word_idx_map，附加SOS和EOS
        :return:
-       """
+    """
 
     dict_path = os.path.join('data', FLAGS.data_type, 'dict.txt')
     with open(dict_path, 'r', encoding='utf') as f:

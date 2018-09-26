@@ -11,4 +11,7 @@ pyvenv.cfg
 .idea/
 .trainpid
 .tensorboardpid
+*.dict
+*.train
+*.validate
 test.py
