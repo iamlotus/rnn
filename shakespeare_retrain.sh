@@ -1,8 +1,8 @@
 #!/bin/sh
-mkdir -p logs/shakespare model/shakespare
-rm -rf logs/shakespare/*  model/shakespare/*
-rm -rf data/shakespare.train data/shakespare.dict data/shakespare.validate
-./shakespare_stop_train.sh
-./shakespare_start_train.sh
+mkdir -p logs/shakespeare model/shakespeare
+rm -rf logs/shakespeare/*  model/shakespeare/*
+rm -rf data/shakespeare.train data/shakespeare.dict data/shakespeare.validate
+./shakespeare_stop_train.sh
+./shakespeare_start_train.sh
 
 
