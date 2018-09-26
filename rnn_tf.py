@@ -285,7 +285,7 @@ class RNN:
                     batch_id = global_step_value % train_dp.batch_num
                     train_x, train_y = train_dp.next(batch_id)
                     if global_step_value%FLAGS.print_train_every == 0 and global_step_value%FLAGS.print_validate_every==0:
-                        # 同时输出训练集和校验集效果
+                        # train & validate
                         validate_x,validate_y=validate_dp.next(validate_batch_id%validate_dp.batch_num)
                         _,train_total_loss,train_summary,new_global_step_value,learning_rate_value\
                             = sess.run([endpoints['train_op'], endpoints['total_loss'],
@@ -300,10 +300,10 @@ class RNN:
     
                         validate_writer.add_summary(validate_summary,global_step_value)
                         validate_writer.flush()
-                        print('[%s] Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f, Validate Loss=%.8f'%(time.strftime('%Y-%m-%d %H:%M:%S'),epoch_id,batch_id,train_total_loss
-                                                                                          ,learning_rate_value,validate_total_loss))
+                        print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f, Validate Loss=%.8f'%
+                              (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss))
                     elif global_step_value%FLAGS.print_train_every == 0:
-                        # 只输出训练集效果
+                        # validate only
                         _, train_total_loss, train_summary, new_global_step_value, learning_rate_value \
                             = sess.run([endpoints['train_op'], endpoints['total_loss'],
                                              merge_summary_op, tf.train.get_or_create_global_step(),
@@ -311,10 +311,10 @@ class RNN:
                                             feed_dict={input_data: train_x, output_data: train_y})
                         train_writer.add_summary(train_summary, global_step_value)
                         train_writer.flush()
-                        print('[%s] Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f' % (
-                        time.strftime('%Y-%m-%d %H:%M:%S'), epoch_id, batch_id, train_total_loss, learning_rate_value))
+                        print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f' % (
+                        time.strftime('%Y-%m-%d %H:%M:%S'), global_step_value,epoch_id, batch_id, train_total_loss, learning_rate_value))
                     elif global_step_value%FLAGS.print_validate_every==0:
-                        # 只输出校验集效果
+                        # train only
                         validate_x, validate_y = validate_dp.next(validate_batch_id % validate_dp.batch_num)
                         _, train_total_loss, new_global_step_value = sess.run(
                             [endpoints['train_op'], merge_summary_op,
@@ -326,10 +326,10 @@ class RNN:
                         validate_batch_id += 1
                         validate_writer.add_summary(validate_summary, global_step_value)
                         validate_writer.flush()
-                        print('[%s] Epoch %d, Batch %d, Validate Loss=%.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),
-                                                                               epoch_id, batch_id, validate_total_loss))
+                        print('[%s] Global Step %d, Epoch %d, Batch %d, Validate Loss=%.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),
+                                                                               global_step_value,epoch_id, batch_id, validate_total_loss))
                     else:
-                        # 什么都不作，仅仅训练
+                        # nothing
                         _, new_global_step_value = sess.run(
                             [endpoints['train_op'],
                              tf.train.get_or_create_global_step()],
