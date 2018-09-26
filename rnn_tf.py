@@ -77,10 +77,9 @@ def read_input(chars):
     train_tensor_path=os.path.join(input_dir,input_file.split('.')[0]+".train")
     validate_tensor_path = os.path.join(input_dir, input_file.split('.')[0] + ".validate")
     if not os.path.isfile(train_tensor_path) or not os.path.isfile(validate_tensor_path):
-        input_path = os.path.join(FLAGS.input_dir, FLAGS.input_name)
         buffer_size = 1000
         data = []
-        f = open(input_path, 'rb') if FLAGS.encoding is None else open(input_path, 'r', encoding=FLAGS.encoding)
+        f = open(FLAGS.input_path, 'rb') if FLAGS.encoding is None else open(FLAGS.input_path, 'r', encoding=FLAGS.encoding)
         raw_data = f.read(buffer_size)
         while raw_data:
             for char in raw_data:
