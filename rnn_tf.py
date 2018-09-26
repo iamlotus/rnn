@@ -23,9 +23,9 @@ tf.app.flags.DEFINE_string('encoding','utf', 'data encoding, ascii/utf/etc. defa
 tf.app.flags.DEFINE_string('cell_type', 'rnn', 'rnn/gru/lstm')
 tf.app.flags.DEFINE_integer('max_epochs', 50000, 'train epochs.')
 tf.app.flags.DEFINE_float('validate_set_ratio', 0.05, 'how many data are used as validate set.')
-tf.app.flags.DEFINE_integer('print_train_every', 10, 'print train every steps.')
-tf.app.flags.DEFINE_integer('print_validate_every', 20, 'print validate every steps.')
-tf.app.flags.DEFINE_integer('save_model_every', 50, 'save mode every steps')
+tf.app.flags.DEFINE_integer('print_train_every', 30, 'print train every steps.')
+tf.app.flags.DEFINE_integer('print_validate_every', 100, 'print validate every steps.')
+tf.app.flags.DEFINE_integer('save_model_every', 100, 'save mode every steps')
 tf.app.flags.DEFINE_integer('gen_sentence_len', 500, 'length of sentence generated')
 tf.app.flags.DEFINE_string('gpu', '0', '''GPU ID''')
 
@@ -54,7 +54,7 @@ def read_dict():
 
             for char in raw_data:
                 if char not in chars:
-                    chars[char] = len(chars) + 1
+                    chars[char] = len(chars)
             raw_data = f.read(buffer_size)
         f.close()
 
