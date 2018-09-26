@@ -346,7 +346,8 @@ class RNN:
     
                 # 结束时保存模型
                 saver.save(sess, file_path, global_step=global_step_value)
-            except KeyboardInterrupt:
+            except KeyboardInterrupt as e:
+                print('Meet KeyboardInterrupt %s'%e)
                 file_path = os.path.join(self.model_dir, self.input_prefix)
                 saver.save(sess, file_path, global_step=global_step_value)
                 print('[%s] Save model %s' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path),
