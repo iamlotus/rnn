@@ -115,10 +115,11 @@ def read_input(chars):
 class DataProvider:
 
     def __init__(self,data):
+
         """
-        去除data尾部凑不满一个batch的数据，剩下数据生成 <x,y>对,y为x向右移一行
+        remove tail of data that is smaller than a whole batch,
         :param data:
-        :return: 通过yield返回 <x,y>
+        :return:
         """
 
         # 去除尾部数据
@@ -365,7 +366,7 @@ class RNN:
             checkpoint = tf.train.latest_checkpoint(self.model_dir)
             if checkpoint:
                 saver.restore(sess, checkpoint)
-                print('Load model,gen sentence"%s"' % checkpoint, flush=True)
+                print('Load model from "%s", gen sentence:' % checkpoint, flush=True)
             else:
                 print('Can not find model from "%s", exit !' % self.model_dir, flush=True)
                 return
