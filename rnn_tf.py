@@ -19,7 +19,7 @@ tf.app.flags.DEFINE_float('learning_rate', 0.001, 'learning rate.')
 tf.app.flags.DEFINE_float('learning_rate_decay_ratio', 0.99, 'learning rate decay.')
 tf.app.flags.DEFINE_float('learning_rate_decay_every', 2, 'epoch numbers that learning rate will decay.')
 tf.app.flags.DEFINE_string('input_path', 'data/jinyong.txt', 'input dir.')
-tf.app.flags.DEFINE_string('encoding','utf', 'data encoding, ascii/utf/etc. default is None (binary)')
+tf.app.flags.DEFINE_string('encoding',None, 'data encoding, ascii/utf/etc. default is None (binary)')
 tf.app.flags.DEFINE_string('cell_type', 'rnn', 'rnn/gru/lstm')
 tf.app.flags.DEFINE_integer('max_epochs', 50000, 'train epochs.')
 tf.app.flags.DEFINE_float('validate_set_ratio', 0.05, 'how many data are used as validate set.')
@@ -34,8 +34,8 @@ FLAGS=tf.app.flags.FLAGS
 
 def read_dict():
     """
-    获取词典
-    :return: 词典 {词:idx}, 1-based
+    read dict
+    :return: dict {char:idx}, 0-based
     """
     if not os.path.isfile(FLAGS.input_path):
         raise ValueError('can not find input "%s"'%FLAGS.input_path)
@@ -69,7 +69,7 @@ def read_dict():
 
 def read_input(chars):
     """
-    读取数据，根据字典拆分成训练集和测试集(一维tensor)，然后保存
+    read input, encode by dict, split to train set and validate set and save, both of them are 1-D tensor
     :return:
     """
     input_dir, input_file = os.path.split(FLAGS.input_path)
@@ -90,7 +90,7 @@ def read_input(chars):
 
         def split_data(data):
             """
-            将data随机切割为训练集和测试集
+            split to train set and validate set randomly
             :param data:
             :return: train, validate
             """
@@ -122,7 +122,7 @@ class DataProvider:
         :return:
         """
 
-        # 去除尾部数据
+        # remove tail of data, all batches are evenly distributed
         self.batch_num=len(data)//(FLAGS.batch_size*FLAGS.sequence_len)
         data_x=np.array(data[:self.batch_num*(FLAGS.batch_size*FLAGS.sequence_len)])
         data_y=np.zeros(len(data_x))
@@ -221,9 +221,9 @@ def rnn_model(cell_type, input_data, output_data, batch_num, vocab_size, rnn_siz
 
     return end_points
 
+
 class RNN:
     def __init__(self):
-
         self.chars=read_dict()
         self.vocab_size = len(self.chars)
         print('Find %d word(s) in vocabulary'%self.vocab_size)
@@ -425,6 +425,5 @@ if __name__ == '__main__':
 
 
     if __name__ == '__main__':
-        os.environ[
-            'CUDA_VISIBLE_DEVICES'] = FLAGS.gpu  # set GPU visibility in multiple-GPU environment
+        os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu  # set GPU visibility in multiple-GPU environment
         tf.app.run()
