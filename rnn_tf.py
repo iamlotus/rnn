@@ -304,7 +304,7 @@ class RNN:
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f, Validate Loss=%.8f'%
                               (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss),flush=True)
                     elif global_step_value%FLAGS.print_train_every == 0:
-                        # validate only
+                        # train only
                         _,last_state, train_total_loss, train_summary,  learning_rate_value \
                             = sess.run([endpoints['train_op'], endpoints['last_state'], endpoints['total_loss'],
                                              merge_summary_op,
@@ -315,7 +315,7 @@ class RNN:
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f' % (
                         time.strftime('%Y-%m-%d %H:%M:%S'), global_step_value,epoch_id, batch_id, train_total_loss, learning_rate_value),flush=True)
                     elif global_step_value%FLAGS.print_validate_every==0:
-                        # train only
+                        # validate only
                         validate_x, validate_y = validate_dp.next(validate_batch_id % validate_dp.batch_num)
                         _,last_state, train_total_loss= sess.run(
                             [endpoints['train_op'], endpoints['last_state'], merge_summary_op],
@@ -383,19 +383,24 @@ class RNN:
                 else:
                     return vocabs[sample]
 
+            def prediction_to_vocab(prediction):
+                vocab = to_vocab(prediction[0])
+                vocab_id=self.chars[vocab]
+                return vocab_id,vocab
+
             i=0
             sentence = []
             vocabid = random.randrange(len(self.chars))
             vocab= vocabs[vocabid]
             sentence.append(vocab)
             x=np.array([[vocabid]])
+
+            prediction,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x})
             while i<FLAGS.gen_sentence_len:
-                y,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x})
-                predict=y[0]
-                vocab=to_vocab(predict)
+                vocab_id,vocab=prediction_to_vocab(prediction)
                 sentence.append(vocab)
-                x = np.zeros((1, 1))
-                x[0, 0] = self.chars[vocab]
+                x = np.array([[vocabid]])
+                prediction,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x,endpoints['initial_state']:last_state})
                 i += 1
     
             output = bytes(sentence).decode() if isinstance(sentence[0],int) else ''.join(sentence)
