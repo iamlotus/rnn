@@ -15,9 +15,9 @@ tf.app.flags.DEFINE_integer('batch_size', 64, 'batch size.')
 tf.app.flags.DEFINE_integer('rnn_size', 128, 'rnn hidden size.')
 tf.app.flags.DEFINE_integer('num_layers', 2, 'rnn num layers.')
 tf.app.flags.DEFINE_integer('sequence_len', 50, 'sequence length, input will be formatted to (batch_size,sequence_len)')
-tf.app.flags.DEFINE_float('learning_rate', 0.001, 'learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.002, 'learning rate.')
 tf.app.flags.DEFINE_float('learning_rate_decay_ratio', 0.97, 'learning rate decay.')
-tf.app.flags.DEFINE_float('learning_rate_decay_every', 2, 'epoch numbers that learning rate will decay.')
+tf.app.flags.DEFINE_float('learning_rate_decay_every', 10, 'epoch numbers that learning rate will decay.')
 tf.app.flags.DEFINE_string('input_path', 'data/jinyong.txt', 'input dir.')
 tf.app.flags.DEFINE_string('encoding',None, 'data encoding, ascii/utf/etc. default is None (binary)')
 tf.app.flags.DEFINE_string('cell_type', 'lstm', 'rnn/gru/lstm')
@@ -288,12 +288,12 @@ class RNN:
                     if global_step_value%FLAGS.print_train_every == 0 and global_step_value%FLAGS.print_validate_every==0:
                         # train & validate
                         validate_x,validate_y=validate_dp.next(validate_batch_id%validate_dp.batch_num)
-                        _,train_total_loss,train_summary,learning_rate_value\
-                            = sess.run([endpoints['train_op'], endpoints['total_loss'],
+                        _,last_state,train_total_loss,train_summary,learning_rate_value\
+                            = sess.run([endpoints['train_op'], endpoints['last_state'],endpoints['total_loss'],
                                             merge_summary_op,
                                              endpoints['learning_rate']],feed_dict={input_data:train_x,output_data:train_y})
                         
-                        validate_total_loss,validate_summary = sess.run([endpoints['total_loss'],merge_summary_op],
+                        validate_total_loss,validate_last_state,validate_summary = sess.run([endpoints['total_loss'], endpoints['last_state'],merge_summary_op],
                                                             feed_dict={input_data: validate_x, output_data: validate_y})
                         validate_batch_id += 1
                         train_writer.add_summary(train_summary, global_step_value)
@@ -305,8 +305,8 @@ class RNN:
                               (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss),flush=True)
                     elif global_step_value%FLAGS.print_train_every == 0:
                         # validate only
-                        _, train_total_loss, train_summary,  learning_rate_value \
-                            = sess.run([endpoints['train_op'], endpoints['total_loss'],
+                        _,last_state, train_total_loss, train_summary,  learning_rate_value \
+                            = sess.run([endpoints['train_op'], endpoints['last_state'], endpoints['total_loss'],
                                              merge_summary_op,
                                              endpoints['learning_rate']],
                                             feed_dict={input_data: train_x, output_data: train_y})
@@ -317,8 +317,8 @@ class RNN:
                     elif global_step_value%FLAGS.print_validate_every==0:
                         # train only
                         validate_x, validate_y = validate_dp.next(validate_batch_id % validate_dp.batch_num)
-                        _, train_total_loss= sess.run(
-                            [endpoints['train_op'], merge_summary_op],
+                        _,last_state, train_total_loss= sess.run(
+                            [endpoints['train_op'], endpoints['last_state'], merge_summary_op],
                             feed_dict={input_data: train_x, output_data: train_y})
                         validate_total_loss, validate_summary = sess.run(
                             [endpoints['total_loss'], merge_summary_op],
@@ -330,8 +330,8 @@ class RNN:
                                                                                global_step_value,epoch_id, batch_id, validate_total_loss),flush=True)
                     else:
                         # nothing
-                        _, = sess.run(
-                            [endpoints['train_op']],
+                        _,last_state = sess.run(
+                            [endpoints['train_op'], endpoints['last_state']],
                             feed_dict={input_data: train_x, output_data: train_y})
     
                     if global_step_value % FLAGS.save_model_every == 0:
@@ -390,7 +390,7 @@ class RNN:
             sentence.append(vocab)
             x=np.array([[vocabid]])
             while i<FLAGS.gen_sentence_len:
-                y=sess.run(endpoints['prediction'],feed_dict={input_data:x})
+                y,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x})
                 predict=y[0]
                 vocab=to_vocab(predict)
                 sentence.append(vocab)
