@@ -27,6 +27,7 @@ tf.app.flags.DEFINE_integer('print_train_every', 30, 'print train every steps.')
 tf.app.flags.DEFINE_integer('print_validate_every', 100, 'print validate every steps.')
 tf.app.flags.DEFINE_integer('save_model_every', 100, 'save mode every steps')
 tf.app.flags.DEFINE_integer('gen_sentence_len', 500, 'length of sentence generated')
+tf.app.flags.DEFINE_integer('random_seed', 123, 'random seed for python/np/tf')
 tf.app.flags.DEFINE_string('gpu', '0', '''GPU ID''')
 
 FLAGS=tf.app.flags.FLAGS
@@ -420,7 +421,9 @@ if __name__ == '__main__':
             else:
                 print('%s = %s' % (k, v))
         print('=' * 100, flush=True)
-
+        np.random.seed(FLAGS.random_seed)
+        random.seed(FLAGS.random_seed)
+        tf.set_random_seed(FLAGS.random_seed)
         rnn=RNN()
 
         if FLAGS.mode == 'train':
