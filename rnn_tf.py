@@ -8,6 +8,7 @@ import time
 import operator
 import pickle
 import random
+import sys
 
 
 tf.app.flags.DEFINE_string('mode', 'train', 'running mode, "train" or "gen"')
@@ -403,9 +404,15 @@ class RNN:
                 x = np.array([[vocabid]])
                 prediction,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x,endpoints['initial_state']:last_state})
                 i += 1
-    
-            output = bytes(sentence).decode() if isinstance(sentence[0],int) else ''.join(sentence)
-            print(output,flush=True)
+
+            if isinstance(sentence[0], int):
+                sys.stdout.buffer.write(bytes(sentence))
+                sys.stdout.buffer.write(b'\n')
+                sys.stdout.buffer.write(b'\n')
+                sys.stdout.flush()
+            else:
+                print("".join(sentence), end='\n', flush=True)
+
 
 
 if __name__ == '__main__':
