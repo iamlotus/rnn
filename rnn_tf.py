@@ -27,7 +27,7 @@ tf.app.flags.DEFINE_float('validate_set_ratio', 0.05, 'how many data are used as
 tf.app.flags.DEFINE_integer('print_train_every', 30, 'print train every steps.')
 tf.app.flags.DEFINE_integer('print_validate_every', 100, 'print validate every steps.')
 tf.app.flags.DEFINE_integer('save_model_every', 100, 'save mode every steps')
-tf.app.flags.DEFINE_integer('gen_sentence_len', 500, 'length of sentence generated')
+tf.app.flags.DEFINE_integer('gen_sentence_len', 100, 'length of sentence generated')
 tf.app.flags.DEFINE_integer('random_seed', 123, 'random seed for python/np/tf')
 tf.app.flags.DEFINE_string('gpu', '0', '''GPU ID''')
 
@@ -143,20 +143,21 @@ class DataProvider:
         return self.data_x[batch_id], self.data_y[batch_id]
     
 
-def rnn_model(cell_type, input_data, output_data, batch_num, vocab_size, rnn_size, num_layers):
+def rnn_model(cell_type, input_data, output_data, vocab_size, rnn_size, num_layers, batch_size,
+              learning_rate):
     """
-    Create a RNN model
-    :param cell_type: cell type, one of 'rnn'/'gru'/'lstm'
-    :param input_data:
-    :param output_data: output_data tensor of shape (batch,time) is used as labels to calculate loss, None in predictions
-    :param batch_num: how many batchs in one (training) epoch, None in predictions
-    :param vocab_size: vocabulary size,
-    :param rnn_size: the depth of internal neural network
+    construct rnn seq2seq model.
+    :param cell_type: cell_type class
+    :param input_data: input data placeholder
+    :param output_data: output data placeholder
+    :param vocab_size:
+    :param rnn_size:
     :param num_layers:
-    :return: endpoints
+    :param batch_size:
+    :param learning_rate:
+    :return:
     """
-
-    argkws={'num_units':rnn_size}
+    end_points = {}
 
     if cell_type== 'rnn':
         cell_fun=tf.nn.rnn_cell.BasicRNNCell
@@ -164,60 +165,53 @@ def rnn_model(cell_type, input_data, output_data, batch_num, vocab_size, rnn_siz
         cell_fun=tf.nn.rnn_cell.GRUCell
     elif cell_type == 'lstm':
         cell_fun =tf.nn.rnn_cell.LSTMCell
-        argkws['state_is_tuple']=True
-    else:
-        raise ValueError('wrong cell_type "%s"' % cell_type)
 
-    end_points={}
-    batch_size= input_data.get_shape()[0]
-    cell=cell_fun(**argkws)
+    cell = cell_fun(rnn_size, state_is_tuple=True)
     cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
 
-    initial_state=cell.zero_state(batch_size,tf.float32) if output_data is not None else cell.zero_state(1,tf.float32)
-    # be equivalent to `tf.matmul(input_data_one_hot, embedding)` but avoid matrix multiply
-    embedding=tf.get_variable('embedding',initializer=tf.random_uniform([vocab_size,rnn_size],-1.0,1.0))
-    inputs=tf.nn.embedding_lookup(embedding,input_data)
-
-    # [batch_size,?, rnn_size]=[64,?,128]
-    outputs,last_state=tf.nn.dynamic_rnn(cell,inputs,initial_state=initial_state)
-    output=tf.reshape(outputs,[-1,rnn_size])
-
-    output_weights= tf.get_variable('weights',initializer=tf.truncated_normal([rnn_size,vocab_size]))
-    output_bias=tf.get_variable('bias',initializer=tf.zeros([vocab_size]))
-    # [?,vocab_size]
-    output_logits =tf.nn.bias_add(tf.matmul(output,output_weights),bias=output_bias)
-    end_points['initial_state'] = initial_state
-    end_points['output'] = output
-    end_points['last_state'] = last_state
-
-    # training
     if output_data is not None:
-        # exponential decay learning rate
-        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, tf.train.get_or_create_global_step(),
-                                                   FLAGS.learning_rate_decay_every * batch_num,
-                                                   FLAGS.learning_rate_decay_ratio, staircase=True,
-                                                   name='exponational_decay_learning_ratio')
-        
-        # Use sparse softmax
-        labels = tf.reshape(output_data, [-1])
-        loss=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_logits,labels=labels)
-        total_loss = tf.reduce_mean(loss)
-        with tf.name_scope("hidden"):
-            tf.summary.histogram("embedding",embedding)
-            tf.summary.histogram("output_weights",output_weights)
-            tf.summary.histogram("output_bias", output_bias)
-        tf.summary.scalar('total_loss', total_loss)
-        tf.summary.scalar('learning_rate',learning_rate)
-        end_points['loss'] = loss
-        end_points['total_loss'] = total_loss
-        end_points['learning_rate'] = learning_rate
-
-        train_op = tf.train.GradientDescentOptimizer(learning_rate).minimize(total_loss,global_step=tf.train.get_or_create_global_step())
-        end_points['train_op'] = train_op
-
-    # prediction
+        initial_state = cell.zero_state(batch_size, tf.float32)
     else:
-        prediction=tf.nn.softmax(output_logits)
+        initial_state = cell.zero_state(1, tf.float32)
+
+    with tf.device("/cpu:0"),tf.name_scope("hidden"):
+        embedding = tf.get_variable('embedding', initializer=tf.random_uniform(
+            [vocab_size + 1, rnn_size], -1.0, 1.0))
+        inputs = tf.nn.embedding_lookup(embedding, input_data)
+        tf.summary.histogram("embedding", embedding)
+
+    # [batch_size, ?, rnn_size] = [64, ?, 128]
+    outputs, last_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state)
+    output = tf.reshape(outputs, [-1, rnn_size])
+
+    weights = tf.Variable(tf.truncated_normal([rnn_size, vocab_size]))
+    bias = tf.Variable(tf.zeros(shape=[vocab_size]))
+    logits = tf.nn.bias_add(tf.matmul(output, weights), bias=bias)
+    # [?, vocab_size+1]
+
+    if output_data is not None:
+        # output_data must be one-hot encode
+        labels = tf.one_hot(tf.reshape(output_data, [-1]), depth=vocab_size)
+        # should be [?, vocab_size+1]
+
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=logits)
+        # loss shape should be [?, vocab_size+1]
+        total_loss = tf.reduce_mean(loss)
+
+        tf.summary.scalar('total_loss', total_loss)
+        tf.summary.scalar('learning_rate', learning_rate)
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
+
+        end_points['initial_state'] = initial_state
+        end_points['output'] = output
+        end_points['train_op'] = train_op
+        end_points['total_loss'] = total_loss
+        end_points['loss'] = loss
+        end_points['last_state'] = last_state
+    else:
+        prediction = tf.nn.softmax(logits)
+
+        end_points['initial_state'] = initial_state
         end_points['last_state'] = last_state
         end_points['prediction'] = prediction
 
@@ -264,11 +258,12 @@ class RNN:
         print("## validate_dp.data_y[0][0][-10:]: %s" % str(validate_dp.data_y[0][0][-10:]))
 
 
-        input_data = tf.placeholder(tf.int32, [FLAGS.batch_size, FLAGS.sequence_len], 'input_data')
-        output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, FLAGS.sequence_len], 'output_data')
-        endpoints = rnn_model(FLAGS.cell_type, input_data, output_data,train_dp.batch_num, self.vocab_size, FLAGS.rnn_size,
-                                    FLAGS.num_layers)
+        input_data = tf.placeholder(tf.int32, [FLAGS.batch_size, None], 'input_data')
+        output_data = tf.placeholder(tf.int32, [FLAGS.batch_size, None], 'output_data')
+        endpoints = rnn_model(cell_type=FLAGS.cell_type, input_data=input_data, output_data=output_data, vocab_size=self.vocab_size, rnn_size=FLAGS.rnn_size,
+                              num_layers=FLAGS.num_layers,batch_size=FLAGS.batch_size,learning_rate=FLAGS.learning_rate)
         merge_summary_op = tf.summary.merge_all()
+        global_step=0
         with tf.Session() as sess:
             saver = tf.train.Saver(tf.global_variables())
             sess.run(tf.group([tf.global_variables_initializer(), tf.local_variables_initializer()]))
@@ -284,43 +279,41 @@ class RNN:
     
             # max train step
             max_step = FLAGS.max_epochs*train_dp.batch_num
-            global_step_value=sess.run(tf.train.get_or_create_global_step())
+           
             try:
-                while global_step_value<=max_step:
+                while global_step<=max_step:
                     validate_batch_id=0
-                    epoch_id = global_step_value // train_dp.batch_num
-                    batch_id = global_step_value % train_dp.batch_num
+                    epoch_id = global_step // train_dp.batch_num
+                    batch_id = global_step % train_dp.batch_num
                     train_x, train_y = train_dp.next(batch_id)
-                    if global_step_value%FLAGS.print_train_every == 0 and global_step_value%FLAGS.print_validate_every==0:
+                    if global_step%FLAGS.print_train_every == 0 and global_step%FLAGS.print_validate_every==0:
                         # train & validate
                         validate_x,validate_y=validate_dp.next(validate_batch_id%validate_dp.batch_num)
-                        _,last_state,train_total_loss,train_summary,learning_rate_value\
+                        _,last_state,train_total_loss,train_summary\
                             = sess.run([endpoints['train_op'], endpoints['last_state'],endpoints['total_loss'],
-                                            merge_summary_op,
-                                             endpoints['learning_rate']],feed_dict={input_data:train_x,output_data:train_y})
+                                            merge_summary_op],feed_dict={input_data:train_x,output_data:train_y})
                         
                         validate_total_loss,validate_last_state,validate_summary = sess.run([endpoints['total_loss'], endpoints['last_state'],merge_summary_op],
                                                             feed_dict={input_data: validate_x, output_data: validate_y})
                         validate_batch_id += 1
-                        train_writer.add_summary(train_summary, global_step_value)
+                        train_writer.add_summary(train_summary, global_step)
                         train_writer.flush()
     
-                        validate_writer.add_summary(validate_summary,global_step_value)
+                        validate_writer.add_summary(validate_summary,global_step)
                         validate_writer.flush()
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f, Validate Loss=%.8f'%
-                              (time.strftime('%Y-%m-%d %H:%M:%S'),global_step_value,epoch_id,batch_id,train_total_loss,learning_rate_value,validate_total_loss),flush=True)
-                    elif global_step_value%FLAGS.print_train_every == 0:
+                              (time.strftime('%Y-%m-%d %H:%M:%S'),global_step,epoch_id,batch_id,train_total_loss,FLAGS.learning_rate,validate_total_loss),flush=True)
+                    elif global_step%FLAGS.print_train_every == 0:
                         # train only
-                        _,last_state, train_total_loss, train_summary,  learning_rate_value \
+                        _,last_state, train_total_loss, train_summary \
                             = sess.run([endpoints['train_op'], endpoints['last_state'], endpoints['total_loss'],
-                                             merge_summary_op,
-                                             endpoints['learning_rate']],
+                                             merge_summary_op],
                                             feed_dict={input_data: train_x, output_data: train_y})
-                        train_writer.add_summary(train_summary, global_step_value)
+                        train_writer.add_summary(train_summary, global_step)
                         train_writer.flush()
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Train Loss=%.8f, Learning Rate=%.8f' % (
-                        time.strftime('%Y-%m-%d %H:%M:%S'), global_step_value,epoch_id, batch_id, train_total_loss, learning_rate_value),flush=True)
-                    elif global_step_value%FLAGS.print_validate_every==0:
+                        time.strftime('%Y-%m-%d %H:%M:%S'), global_step,epoch_id, batch_id, train_total_loss, FLAGS.learning_rate),flush=True)
+                    elif global_step%FLAGS.print_validate_every==0:
                         # validate only
                         validate_x, validate_y = validate_dp.next(validate_batch_id % validate_dp.batch_num)
                         _,last_state, train_total_loss= sess.run(
@@ -330,32 +323,32 @@ class RNN:
                             [endpoints['total_loss'], merge_summary_op],
                             feed_dict={input_data: validate_x, output_data: validate_y})
                         validate_batch_id += 1
-                        validate_writer.add_summary(validate_summary, global_step_value)
+                        validate_writer.add_summary(validate_summary, global_step)
                         validate_writer.flush()
                         print('[%s] Global Step %d, Epoch %d, Batch %d, Validate Loss=%.8f' % (time.strftime('%Y-%m-%d %H:%M:%S'),
-                                                                               global_step_value,epoch_id, batch_id, validate_total_loss),flush=True)
+                                                                               global_step,epoch_id, batch_id, validate_total_loss),flush=True)
                     else:
                         # nothing
                         _,last_state = sess.run(
                             [endpoints['train_op'], endpoints['last_state']],
                             feed_dict={input_data: train_x, output_data: train_y})
     
-                    if global_step_value % FLAGS.save_model_every == 0:
+                    if global_step % FLAGS.save_model_every == 0:
                         # 保存模型
                         file_path=os.path.join(self.model_dir,self.input_prefix)
-                        saver.save(sess, file_path, global_step=global_step_value)
-                        print('[%s] Save model %s-%d' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path,global_step_value),
+                        saver.save(sess, file_path, global_step=global_step)
+                        print('[%s] Save model %s-%d' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path,global_step),
                               flush=True)
 
                     # global_step has been increased by optimizer
-                    global_step_value=sess.run(tf.train.get_or_create_global_step())
+                    global_step+=1
     
                 # save when exit
-                saver.save(sess, file_path, global_step=global_step_value)
+                saver.save(sess, file_path, global_step=global_step)
             except KeyboardInterrupt as e:
                 print('Meet KeyboardInterrupt %s'%e)
                 file_path = os.path.join(self.model_dir, self.input_prefix)
-                saver.save(sess, file_path, global_step=global_step_value)
+                saver.save(sess, file_path, global_step=global_step)
                 print('[%s] Save model %s' % (time.strftime('%Y-%m-%d %H:%M:%S'), file_path),
                       flush=True)
 
@@ -363,11 +356,27 @@ class RNN:
         batch_size=1
         seq_len=1
         input_data = tf.placeholder(tf.int32, [batch_size, seq_len], 'input_data')
-        endpoints = rnn_model(FLAGS.cell_type, input_data, None, None, self.vocab_size,
-                               FLAGS.rnn_size,
-                               FLAGS.num_layers)
-        
+
+        endpoints = rnn_model(cell_type=FLAGS.cell_type, input_data=input_data, output_data=None,
+                              vocab_size=self.vocab_size, rnn_size=FLAGS.rnn_size,
+                              num_layers=FLAGS.num_layers,batch_size=batch_size, learning_rate=FLAGS.learning_rate)
+
+        # vocabs is list of all chars
+        vocabs = list(map(lambda x: x[0], sorted(self.chars.items(), key=operator.itemgetter(1))))
+
+        def to_vocab(predict):
+            predict = predict[0]
+            sample = np.random.choice(np.arange(len(predict)), p=predict)
+            return vocabs[sample]
+
+        def prediction_to_vocab(prediction):
+            vocab = to_vocab(prediction[0])
+            vocab_id = self.chars[vocab]
+            return vocab_id, vocab
+
+        init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         with tf.Session() as sess:
+            sess.run(init_op)
             saver = tf.train.Saver(tf.global_variables())
             checkpoint = tf.train.latest_checkpoint(self.model_dir)
             if checkpoint:
@@ -376,51 +385,46 @@ class RNN:
             else:
                 print('Can not find model from "%s", exit !' % self.model_dir, flush=True)
                 return
-    
-            # vocabs is list of all chars
-            vocabs = list(map(lambda x: x[0], sorted(self.chars.items(), key=operator.itemgetter(1))))
 
-            def to_vocab(predict):
-                # pick word according to probability from predict
-                predict /= np.sum(predict)
-                sample = np.random.choice(np.arange(len(predict)), p=predict)
-                if sample > len(vocabs):
-                    return vocabs[-1]
+            while True:
+
+                input('## print any key to compose new sentence')
+
+                # pick first word randomly
+                word = vocabs[np.random.randint(len(vocabs))]
+                output = [word]
+
+                x = np.array([[self.chars[word]]])
+                [predict, last_state] = sess.run([endpoints['prediction'], endpoints['last_state']],
+                                                 feed_dict={input_data: x})
+                # second word
+                word = to_vocab(predict)
+
+                i = 1
+                while i < FLAGS.gen_sentence_len:
+                    output.append(word)
+                    i += 1
+                    x = np.zeros((1, 1))
+                    x[0, 0] = self.chars[word]
+                    [predict, last_state] = sess.run([endpoints['prediction'], endpoints['last_state']],
+                                                     feed_dict={input_data: x, endpoints['initial_state']: last_state})
+                    word = to_vocab(predict)
+
+                if isinstance(output[0],int):
+                    sys.stdout.buffer.write(
+                        b'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+                    sys.stdout.buffer.write(bytes(output))
+                    sys.stdout.buffer.write(
+                        b'------------------------------------------------------------------------------\n')
+                    sys.stdout.buffer.write(str(output).encode())
+                    sys.stdout.buffer.write(b'\n')
+                    sys.stdout.buffer.write(
+                        b'==============================================================================\n')
+                    sys.stdout.buffer.write(b'\n')
+
+                    sys.stdout.flush()
                 else:
-                    return vocabs[sample]
-
-            def prediction_to_vocab(prediction):
-                vocab = to_vocab(prediction[0])
-                vocab_id=self.chars[vocab]
-                return vocab_id,vocab
-
-            i=0
-            sentence = []
-            vocabid = random.randrange(len(self.chars))
-            vocab= vocabs[vocabid]
-            sentence.append(vocab)
-            x=np.array([[vocabid]])
-
-            prediction,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x})
-            while i<FLAGS.gen_sentence_len:
-                vocab_id,vocab=prediction_to_vocab(prediction)
-                sentence.append(vocab)
-                x = np.array([[vocabid]])
-                prediction,last_state=sess.run([endpoints['prediction'],endpoints['last_state']],feed_dict={input_data:x,endpoints['initial_state']:last_state})
-                i += 1
-
-            if isinstance(sentence[0], int):
-                sys.stdout.buffer.write(b'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-                sys.stdout.buffer.write(bytes(sentence))
-                sys.stdout.buffer.write(b'------------------------------------------------------------------------------\n')
-                sys.stdout.buffer.write(str(sentence).encode())
-                sys.stdout.buffer.write(b'\n')
-                sys.stdout.buffer.write(b'==============================================================================\n')
-                sys.stdout.buffer.write(b'\n')
-
-                sys.stdout.flush()
-            else:
-                print("".join(sentence), end='\n', flush=True)
+                    print("".join(output), end='\n', flush=True)
 
 
 
