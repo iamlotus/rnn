@@ -406,9 +406,14 @@ class RNN:
                 i += 1
 
             if isinstance(sentence[0], int):
+                sys.stdout.buffer.write(b'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
                 sys.stdout.buffer.write(bytes(sentence))
+                sys.stdout.buffer.write(b'------------------------------------------------------------------------------\n')
+                sys.stdout.buffer.write(str(sentence).encode())
                 sys.stdout.buffer.write(b'\n')
+                sys.stdout.buffer.write(b'==============================================================================\n')
                 sys.stdout.buffer.write(b'\n')
+
                 sys.stdout.flush()
             else:
                 print("".join(sentence), end='\n', flush=True)
