@@ -127,7 +127,7 @@ class DataProvider:
         # remove tail of data, all batches are evenly distributed
         self.batch_num=len(data)//(FLAGS.batch_size*FLAGS.sequence_len)
         data_x=np.array(data[:self.batch_num*(FLAGS.batch_size*FLAGS.sequence_len)])
-        data_y=np.zeros(len(data_x))
+        data_y=np.zeros(len(data_x),dtype=data_x.dtype)
         data_y[1:]=data_x[0:-1]
         data_y[0]=data_x[-1]
         self.data_x=np.reshape(data_x,[self.batch_num,FLAGS.batch_size,FLAGS.sequence_len])
@@ -255,9 +255,13 @@ class RNN:
 
     def train(self):
         train_data,validate_data=read_input(self.chars)
+
         train_dp, validate_dp = DataProvider(train_data), DataProvider(validate_data)
         print('Find %d records(%d batches) in train set and %d records(%d batchs) in validate set' % (len(train_data),train_dp.batch_num,len(validate_data),validate_dp.batch_num))
-
+        print("## train_dp.data_x[0][0][:10]: %s" % str(train_dp.data_x[0][0][:10]))
+        print("## train_dp.data_y[0][0][-10:]: %s" % str(train_dp.data_y[0][0][-10:]))
+        print("## validate_dp.data_x[0][0][:10]: %s" % str(validate_dp.data_x[0][0][:10]))
+        print("## validate_dp.data_y[0][0][-10:]: %s" % str(validate_dp.data_y[0][0][-10:]))
 
 
         input_data = tf.placeholder(tf.int32, [FLAGS.batch_size, FLAGS.sequence_len], 'input_data')
